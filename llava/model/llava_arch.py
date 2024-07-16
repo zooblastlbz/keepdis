@@ -199,7 +199,7 @@ class LlavaMetaForCausalLM(ABC):
             else:
                 raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
         else:
-            image_features = self.encode_images(images)
+            image_features = self.encode_images(images) # send image through CLIP, and projected by W matrix into language space
 
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
@@ -216,9 +216,9 @@ class LlavaMetaForCausalLM(ABC):
             attention_mask = torch.ones_like(input_ids, dtype=torch.bool)
         else:
             attention_mask = attention_mask.bool()
-        if position_ids is None:
+        if position_ids is None: # identifies the start of each token
             position_ids = torch.arange(0, input_ids.shape[1], dtype=torch.long, device=input_ids.device)
-        if labels is None:
+        if labels is None: # i dont see where this is used
             labels = torch.full_like(input_ids, IGNORE_INDEX)
 
         # remove the padding using attention_mask -- FIXME
@@ -296,7 +296,7 @@ class LlavaMetaForCausalLM(ABC):
                     new_labels_padded[i, -cur_len:] = cur_new_labels
                     attention_mask[i, -cur_len:] = True
                     position_ids[i, -cur_len:] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
-            else:
+            else: # zero padding
                 new_input_embeds_padded.append(torch.cat((
                     cur_new_embed,
                     torch.zeros((max_len - cur_len, cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)
