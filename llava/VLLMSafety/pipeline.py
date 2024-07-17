@@ -98,7 +98,7 @@ def train_gen(args):
         image = Image.open(os.path.join(args.image_folder, image_file)).convert('RGB')
         image_tensor = process_images([image], image_processor, model.config)[0]
 
-        prep_batches(input_ids, image_tensor, model)
+        tkn_dict = prep_batches(input_ids, image_tensor, model)
         
 
 
