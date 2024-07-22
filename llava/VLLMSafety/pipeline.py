@@ -48,7 +48,7 @@ def get_tkns(input_ids, image_tensor, model, img_size):
     ) 
 
     split_embeddings = torch.split(input_embeds[0], chunk_sizes, dim=0)
-    lang_tkns = torch.cat((split_embeddings[0], split_embeddings[2]), 0)
+    lang_tkns = split_embeddings[2] # only the second to avoid adding the same tokens over and over 
     img_tkns = split_embeddings[1]
 
     tkn_dict = {
