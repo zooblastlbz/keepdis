@@ -47,8 +47,8 @@ def get_tkns(input_ids, image_tensor, model, img_size):
         image_sizes = img_size 
     ) 
 
-    split_embeddings = torch.split(input_embeds, chunk_sizes, dim=0)
-    lang_tkns = torch.cat(split_embeddings[0], split_embeddings[2])
+    split_embeddings = torch.split(input_embeds[0], chunk_sizes, dim=0)
+    lang_tkns = torch.cat((split_embeddings[0], split_embeddings[2]), 0)
     img_tkns = split_embeddings[1]
 
     tkn_dict = {
@@ -59,12 +59,19 @@ def get_tkns(input_ids, image_tensor, model, img_size):
     return tkn_dict
 
 def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
-    idx = line["id"] # can be used to identify each batch, probably good to use to keep track of progress during training
+    q_id = line["id"] # can be used to identify each batch, probably good to use to keep track of progress during training
     image_file = line["image"]
     qs = line["text"]
 
     if qs.startswith(f"{DEFAULT_IMAGE_TOKEN}\n") == False:
+        idx = qs.find(DEFAULT_IMAGE_TOKEN) + len(DEFAULT_IMAGE_TOKEN)
+        qs = qs[idx:].strip()
+        qs = qs[idx:]
         qs = DEFAULT_IMAGE_TOKEN + '\n' + qs
+        assert qs.startswith(f"{DEFAULT_IMAGE_TOKEN}\n") == True, f'no image tag found in text \n text = {qs} \n id = {q_id}'
+
+    # something to note: this appends a default prompt to each prompt, might impact discrim since it will keep getting trained on
+    # the same tokens. i'll adjust to remove this soon 
 
     conv = conv_templates[args.conv_mode].copy()
     conv.append_message(conv.roles[0], qs)
