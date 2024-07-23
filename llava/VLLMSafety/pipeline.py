@@ -18,7 +18,7 @@ from llava.utils import disable_torch_init
 from llava.mm_utils import tokenizer_image_token, process_images, get_model_name_from_path
 #from llava.model.llava_arch import prepare_inputs_labels_for_multimodal
 
-# from discriminator.py import Discriminator # import Lthe discriminator class
+from discriminator import preprocess_and_call_train
 
 def split_list(lst, n): # taken from model_vqa.py
     """Split a list into n (roughly) equal-sized chunks"""
@@ -31,24 +31,24 @@ def get_chunk(lst, n, k): # taken from model_vqa.py
     return chunks[k]
 
 def get_tkns(input_ids, image_tensor, model, img_size):
-    '''takes in one prompt and one image and  returns a dictionary that has the language tokens 
+    '''takes in one prompt and one image and  returns a dictionary that has the language tokens
     from the prompt as one entry and the image tokens from the prompt as another'''
     position_ids = None # set to None in generate()
-    attention_mask = None # set to None in generate() must figure out if this and the above is acceptable 
+    attention_mask = None # set to None in generate() must figure out if this and the above is acceptable
 
-    # prep_inputs... returns None as the first value, but idk why 
+    # prep_inputs... returns None as the first value, but idk why
     none_q, position_ids, attention_mask, past_key_values, input_embeds, labels, chunk_sizes = model.prepare_inputs_labels_for_multimodal(
         input_ids = input_ids,
         position_ids = position_ids,
-        attention_mask = attention_mask, 
+        attention_mask = attention_mask,
         past_key_values = None,
-        labels = None, 
+        labels = None,
         images = image_tensor.unsqueeze(0).half().cuda(),
-        image_sizes = img_size 
-    ) 
+        image_sizes = img_size
+    )
 
     split_embeddings = torch.split(input_embeds[0], chunk_sizes, dim=0)
-    lang_tkns = split_embeddings[2] # only the second to avoid adding the same tokens over and over 
+    lang_tkns = split_embeddings[2] # only the second to avoid adding the same tokens over and over
     img_tkns = split_embeddings[1]
 
     tkn_dict = {
@@ -71,7 +71,7 @@ def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
         assert qs.startswith(f"{DEFAULT_IMAGE_TOKEN}\n") == True, f'no image tag found in text \n text = {qs} \n id = {q_id}'
 
     # something to note: this appends a default prompt to each prompt, might impact discrim since it will keep getting trained on
-    # the same tokens. i'll adjust to remove this soon 
+    # the same tokens. i'll adjust to remove this soon
 
     conv = conv_templates[args.conv_mode].copy()
     conv.append_message(conv.roles[0], qs)
@@ -84,17 +84,18 @@ def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
     image_tensor = process_images([image], image_processor, model.config)[0]
     image_sizes = [image.size]
 
-    tkn_dict = get_tkns(input_ids, image_tensor, model, image_sizes)
+    tkn_dict = get_tkns(input_ids, image_tensor, model, image_sizes) #returns tkn_dict with image and language tokens
 
+    projection_model = preprocess_and_call_train(tkn_dict)
 
 def train(args):
     args_dict = vars(args)
-     
+
     device = 'cuda' # set device appropriately
     EPOCHS = 10
     G_losses = []
     D_losses = []
-    iters = 0 
+    iters = 0
 
     ## boot up model and get everything running properly
     disable_torch_init()
@@ -106,15 +107,14 @@ def train(args):
     questions = [json.loads(q) for q in open(os.path.expanduser(args.conversation_file), "r")]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
 
-    # right now each batch is created one by one for each conversation in the file, maybe we want to precompute all the 
-    # batches ahead of time? or maybe we consolidate this for-loop into a function? for now it should work but 
-    # just some things to think about 
+    # right now each batch is created one by one for each conversation in the file, maybe we want to precompute all the
+    # batches ahead of time?  maybe we consolidate this for-loop into a function? for now it should work but
+    # just some things to think about
 
-    for line in questions: 
+    for line in questions:
         tkn_dict = prep_batches(line, model, tokenizer, image_processor, args, **args_dict)
 
-        real_label = 1
-        fake_label = 0
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -130,4 +130,4 @@ if __name__ == "__main__":
     parser.add_argument("--num_beams", type=int, default=1)
     args = parser.parse_args()
 
-    train(args) 
+    train(args)
