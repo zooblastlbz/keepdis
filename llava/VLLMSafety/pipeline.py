@@ -86,7 +86,7 @@ def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
 
     tkn_dict = get_tkns(input_ids, image_tensor, model, image_sizes) #returns tkn_dict with image and language tokens
 
-    projection_model = preprocess_and_call_train(tkn_dict)
+    return tkn_dict
 
 def train(args):
     args_dict = vars(args)
@@ -101,6 +101,7 @@ def train(args):
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
+    breakpoint()
     tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
 
     # get data - following along with model_vqa.py
@@ -113,6 +114,8 @@ def train(args):
 
     for line in questions:
         tkn_dict = prep_batches(line, model, tokenizer, image_processor, args, **args_dict)
+
+    projection_model = preprocess_and_call_train(tkn_dict)
 
 
 
