@@ -58,7 +58,7 @@ def get_tkns(input_ids, image_tensor, model, img_size):
 
     return tkn_dict
 
-def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
+def prep_batches(line, model, tokenizer, image_processor, args, **kwargs):
     q_id = line["id"] # can be used to identify each batch, probably good to use to keep track of progress during training
     image_file = line["image"]
     qs = line["text"]
