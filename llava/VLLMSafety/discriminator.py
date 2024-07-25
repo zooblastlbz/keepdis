@@ -32,13 +32,11 @@ def evaluate(model, loss_function, X, y):
     return predictions, acc, loss
 
 
-def train(training_dataloader, IMAGE_SHAPE=1024 * 5, NUM_CLASSES=2, device='cuda', EPOCHS=10):
+def train(training_dataloader, IMAGE_SHAPE=1024 * 5, NUM_CLASSES=2, device='cuda', EPOCHS=100):
     model = EasyNeuralNetwork(IMAGE_SHAPE, NUM_CLASSES)
     model.to(device)  # put the model on the device (remember its cuda on workstation)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_function = nn.CrossEntropyLoss()
-
-    training_acc_lst, training_loss_lst = [], []
 
     epochs_acc = []
     for epoch in range(EPOCHS):
@@ -75,7 +73,7 @@ def train(training_dataloader, IMAGE_SHAPE=1024 * 5, NUM_CLASSES=2, device='cuda
 
         model.train(mode=False)  # exit training mode
 
-    return training_acc_lst, training_loss_lst, model
+    return epochs_acc, model
 
 
 # def test():
@@ -101,29 +99,30 @@ def train(training_dataloader, IMAGE_SHAPE=1024 * 5, NUM_CLASSES=2, device='cuda
 
 def preprocess_and_call_train(get_tkns):
     # set device to cpu
-    device = 'mps:0' if torch.backends.mps.is_available() else 'cpu'  # if we are running this on workstation change this to cuda
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'  # if we are running this on workstation change this to cuda
 
     # Example data loading (assuming you have loaded im_tok and lang_tok)
-    im_tok = [entry['img_tkns'] for entry in get_tkns.items()]
-    lang_tok = [entry['lang_tkns'] for entry in get_tkns.items()]
 
-    combined_tokens = [(token, torch.tensor(0)) for token in im_tok] + [(token, torch.tensor(1)) for token in lang_tok]
+    im_tok = get_tkns["img_tkns"].tolist()
+    lang_tok = get_tkns["lang_tkns"].tolist()
+
+    combined_tokens = [(torch.tensor(token), torch.tensor(0)) for token in im_tok] + [(torch.tensor(token), torch.tensor(1)) for token in lang_tok]
 
     # Optionally shuffle the combined list to randomize the order
     random.shuffle(combined_tokens)
 
     # testing code... if our embeddings are the wrong side we are doing something wrong.
-    assert im_tok[0].flatten().size() == [1024*5,
-                                          1], ("flattened image tokens fed to discriminator do not match the size of "
+    assert combined_tokens[0][0].flatten().size() == torch.Size([1024*5]), ("flattened image tokens fed to discriminator do not match the size of "
                                                "disc first layer")
-    assert lang_tok[0].flatten().size() == [1024*5,
-                                            1], ("flattened language tokens fed to discriminator do not match the size "
+    assert combined_tokens[0][0].flatten().size() == torch.Size([1024*5]), ("flattened language tokens fed to discriminator do not match the size "
                                                  "of disc first layer")
 
     # train network
-    training_acc_lst, training_loss_lst, model = train(combined_tokens, device=device)
+    epochs_acc, model = train(combined_tokens, device=device)
 
-    print("------final training accuracy:", training_acc_lst[-1])
+
+    if( len(epochs_acc) > 0 ):
+        print("-----------final epochs acc--------------: ", epochs_acc[-1])
 
     # not gonna do any eval for now
     # test_acc = test()

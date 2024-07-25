@@ -52,13 +52,13 @@ def get_tkns(input_ids, image_tensor, model, img_size):
     img_tkns = split_embeddings[1]
 
     tkn_dict = {
-        lang_tkns: lang_tkns,
-        img_tkns: img_tkns
+        "lang_tkns": lang_tkns,
+        "img_tkns": img_tkns
     }
 
     return tkn_dict
 
-def prep_batches(line, model, tokenizer, image_processor, args, **kwargs):
+def prep_batches(line, model, tokenizer, image_processor, rags, **kwargs):
     q_id = line["id"] # can be used to identify each batch, probably good to use to keep track of progress during training
     image_file = line["image"]
     qs = line["text"]
@@ -101,7 +101,6 @@ def train(args):
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
-    breakpoint()
     tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
 
     # get data - following along with model_vqa.py
@@ -116,8 +115,6 @@ def train(args):
         tkn_dict = prep_batches(line, model, tokenizer, image_processor, args, **args_dict)
 
     projection_model = preprocess_and_call_train(tkn_dict)
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
