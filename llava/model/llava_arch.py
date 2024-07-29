@@ -149,8 +149,7 @@ class LlavaMetaForCausalLM(ABC):
         images, image_sizes=None
     ):
         self.disc_data['image'] = []
-        #print("shape of disdc data image shape", self.disc_data['image'].shape)
-        self.disc_data['lang'] = self.get_model().embed_tokens(input_ids)
+        self.disc_data['lang'] = [] 
 
         vision_tower = self.get_vision_tower()
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
@@ -256,6 +255,11 @@ class LlavaMetaForCausalLM(ABC):
             split_sizes = [x.shape[0] for x in cur_labels_noim]
             cur_input_embeds = self.get_model().embed_tokens(torch.cat(cur_input_ids_noim))
             cur_input_embeds_no_im = torch.split(cur_input_embeds, split_sizes, dim=0)
+
+
+            #curr input embeds is coming from cur_input_ids_noim which means its already filitered
+            self.disc_data['lang'].append(cur_input_embeds)
+
             cur_new_input_embeds = []
             cur_new_labels = []
 
