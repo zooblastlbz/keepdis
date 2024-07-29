@@ -149,7 +149,9 @@ class LlavaMetaForCausalLM(ABC):
         images, image_sizes=None
     ):
         self.disc_data['image'] = []
-        self.disc_data['lang'] = []
+        #print("shape of disdc data image shape", self.disc_data['image'].shape)
+        self.disc_data['lang'] = self.get_model().embed_tokens(input_ids)
+
         vision_tower = self.get_vision_tower()
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
             return input_ids, position_ids, attention_mask, past_key_values, None, labels
@@ -273,8 +275,6 @@ class LlavaMetaForCausalLM(ABC):
 
             new_input_embeds.append(cur_new_input_embeds)
             new_labels.append(cur_new_labels)
-
-        self.disc_data['lang'] = new_input_embeds
 
         # call discriminator: 
         self.discriminator.preprocess_and_call_train(self.disc_data)
