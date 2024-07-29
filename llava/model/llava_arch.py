@@ -140,17 +140,20 @@ class LlavaMetaForCausalLM(ABC):
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
+
+        self.disc_data['image'].append(image_features)
         return image_features
 
     def prepare_inputs_labels_for_multimodal(
         self, input_ids, position_ids, attention_mask, past_key_values, labels,
         images, image_sizes=None
     ):
+        self.disc_data['image'] = []
+        self.disc_data['lang'] = []
         vision_tower = self.get_vision_tower()
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
             return input_ids, position_ids, attention_mask, past_key_values, None, labels
 
-        assert images.ndim < 5, "image dimension exceeds 5"
         if type(images) is list or images.ndim == 5:
             if type(images) is list:
                 images = [x.unsqueeze(0) if x.ndim == 3 else x for x in images]
@@ -210,7 +213,6 @@ class LlavaMetaForCausalLM(ABC):
         # it is a headache to deal with None all the time.
         # But it is not ideal, and if you have a better idea,
         # please open an issue / submit a PR, thanks.
-
         _labels = labels
         _position_ids = position_ids
         _attention_mask = attention_mask
@@ -255,8 +257,6 @@ class LlavaMetaForCausalLM(ABC):
             cur_new_input_embeds = []
             cur_new_labels = []
 
-            chunk_sizes = [split_sizes[0], image_features.size(1), split_sizes[1]] # used for filtering for the discriminator
-
             for i in range(num_images + 1):
                 cur_new_input_embeds.append(cur_input_embeds_no_im[i])
                 cur_new_labels.append(cur_labels_noim[i])
@@ -273,6 +273,11 @@ class LlavaMetaForCausalLM(ABC):
 
             new_input_embeds.append(cur_new_input_embeds)
             new_labels.append(cur_new_labels)
+
+        self.disc_data['lang'] = new_input_embeds
+
+        # call discriminator: 
+        self.discriminator.preprocess_and_call_train(self.disc_data)
 
         # Truncate sequences to max length as image embeddings can make the sequence longer
         tokenizer_model_max_length = getattr(self.config, 'tokenizer_model_max_length', None)
@@ -309,8 +314,6 @@ class LlavaMetaForCausalLM(ABC):
                     new_labels_padded[i, :cur_len] = cur_new_labels
                     attention_mask[i, :cur_len] = True
                     position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
-                
-                assert torch.equal(new_input_embeds[0], new_input_embeds_padded[0]) == True, "padding changed the tensor in prepare_inputs_labels_for_multimodal, so tensor filtering will not work" 
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
 
@@ -327,7 +330,7 @@ class LlavaMetaForCausalLM(ABC):
         if _position_ids is None:
             position_ids = None
 
-        return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels, chunk_sizes
+        return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels
 
     def initialize_vision_tokenizer(self, model_args, tokenizer):
         if model_args.mm_use_im_patch_token:
