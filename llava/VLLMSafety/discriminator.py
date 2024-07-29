@@ -129,7 +129,7 @@ class Discriminator:
         # print("lang tokens[0] shape: ", lang_tok[0].shape) # lang tokens[0] shape:  torch.Size([1277, 5120])
 
 
-        combined_tokens = [(torch.tensor(token).float(), torch.tensor(0).float()) for token in im_tok_list] + [(torch.tensor(token).float(), torch.tensor(1).float()) for token in lang_tok_list]
+        combined_tokens = [(torch.tensor(token), torch.tensor(0)) for token in im_tok_list] + [(torch.tensor(token), torch.tensor(1)) for token in lang_tok_list]
 
         print("im_tok: ", im_tok[0].shape)
         print("lang_tok: ", lang_tok_list[0].shape)
