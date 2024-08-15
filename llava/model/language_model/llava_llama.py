@@ -74,8 +74,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, CausalLMOutputWithPast]:
-
+        d_mode: Optional[bool] = False # False means run without discriminator first 
+        ) -> Union[Tuple, CausalLMOutputWithPast]:
+    
         if inputs_embeds is None:
             (
                 input_ids,
@@ -94,7 +95,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes
             )
 
-        return super().forward(
+        if d_mode == False:
+            return super().forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -106,6 +108,28 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict
         )
+        else: 
+            real_d_loss = self.discriminator.evaluate(self.disc_data["lang"])[2] # are we training discrim here? should we be calculating gradients?
+            fake_d_loss = self.discriminator.evaluate(self.disc_data["images"])[2]
+            model_loss = tuple(super().forward( # i dont think we can directly unpack the output of forward() so i convert to tuple: may not be necessary
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict
+            ))[0] # i think the loss is the first item?
+
+            final_d_loss = real_d_loss + fake_d_loss
+
+        return {
+            "model_loss": model_loss, 
+            "d_loss": final_d_loss
+        }
 
     @torch.no_grad()
     def generate(

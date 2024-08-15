@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
 from torch.utils.data import Sampler
 
@@ -133,8 +134,8 @@ class LengthGroupedSampler(Sampler):
 class LLaVATrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.d_optimizer = optim.Adam(model.discrminator.parameters(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
-        # also need to figure out how to accesst the discriminator, also what learning rate/betas do we want?
+        self.d_optimizer = optim.Adam(self.model.di(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
+        # also need to figure out how to access the discriminator, also what learning rate/betas do we want?
 
 
     def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
@@ -692,8 +693,8 @@ class LLaVATrainer(Trainer):
                         else:
                             grad_norm = _grad_norm
 
-                    self.optimizer.step() # need to calculate the gradients for the discriminator somewhere, not sure where yet, i think in training_step?
-                    self.d_optimizer.step()
+                    self.optimizer.step() 
+                    self.d_optimizer.step() # need to calculate the gradients for the discriminator somewhere, not sure where yet, i think in training_step?
 
                     self.control = self.callback_handler.on_optimizer_step(args, self.state, self.control)
 
