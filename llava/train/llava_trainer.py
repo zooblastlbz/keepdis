@@ -134,7 +134,7 @@ class LengthGroupedSampler(Sampler):
 class LLaVATrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.d_optimizer = optim.Adam(self.model.di(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
+        self.d_optimizer = optim.Adam(self.model.discriminator(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
         # also need to figure out how to access the discriminator, also what learning rate/betas do we want?
 
 
