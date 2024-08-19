@@ -1,7 +1,9 @@
 import os
 import torch
 import torch.nn as nn
+import math
 import torch.optim as optim
+import time
 
 from torch.utils.data import Sampler
 
@@ -10,10 +12,19 @@ from transformers.trainer import (
     is_sagemaker_mp_enabled,
     get_parameter_names,
     has_length,
+    get_model_param_count,
+    hp_params, 
+    skip_first_batches,
     ALL_LAYERNORM_LAYERS,
     logger,
+    DebugOption, 
+    DebugUnderflowOverflow, 
+    TrainerState, 
+    OptimizerNames, 
+    TrainOutput
 )
 from typing import List, Optional
+TRAINER_STATE_NAME = "trainer_state.json"
 
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -134,7 +145,7 @@ class LengthGroupedSampler(Sampler):
 class LLaVATrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.d_optimizer = optim.Adam(self.model.discriminator(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
+        #self.d_optimizer = optim.Adam(self.model.discriminator(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
         # also need to figure out how to access the discriminator, also what learning rate/betas do we want?
 
 
@@ -260,43 +271,6 @@ class LLaVATrainer(Trainer):
         else:
             super(LLaVATrainer, self)._save(output_dir, state_dict)
 
-    def compute_loss(self, model, inputs, return_outputs=False):
-            if self.label_smoother is not None and "labels" in inputs:
-                labels = inputs.pop("labels")
-            else:
-                labels = None
-
-            loss_dict = model(**inputs) # i think this is correct
-            #outputs = model(**inputs)
-
-            ## not sure if we need the rest of this? can we just return the loss?
-
-            # Save past state if it exists
-            # TODO: this needs to be fixed and made cleaner later.
-            if self.args.past_index >= 0:
-                self._past = outputs[self.args.past_index]
-
-            if labels is not None:
-                unwrapped_model = self.accelerator.unwrap_model(model)
-                if _is_peft_model(unwrapped_model):
-                    model_name = unwrapped_model.base_model.model._get_name()
-                else:
-                    model_name = unwrapped_model._get_name()
-                if model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
-                    loss = self.label_smoother(outputs, labels, shift_labels=True)
-                else:
-                    loss = self.label_smoother(outputs, labels)
-            else:
-                if isinstance(outputs, dict) and "loss" not in outputs:
-                    raise ValueError(
-                        "The model did not return a loss from the inputs, only the following keys: "
-                        f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                    )
-                # We don't use .loss here since the model may return tuples instead of ModelOutput.
-                loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
-            return (loss, outputs) if return_outputs else loss
-        
     def _inner_training_loop(
         self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
     ):
@@ -320,8 +294,6 @@ class LLaVATrainer(Trainer):
         logger.debug(f"Currently training with a batch size of: {self._train_batch_size}")
         # Data loader and number of training steps
         train_dataloader = self.get_train_dataloader()
-        if self.is_fsdp_xla_v2_enabled:
-            train_dataloader = tpu_spmd_dataloader(train_dataloader)
 
         # Setting up training control variables:
         # number of training epochs: num_train_epochs
@@ -393,11 +365,7 @@ class LLaVATrainer(Trainer):
         if not delay_optimizer_creation:
             self.create_optimizer_and_scheduler(num_training_steps=max_steps)
 
-        self.state = TrainerState(
-            stateful_callbacks=[
-                cb for cb in self.callback_handler.callbacks + [self.control] if isinstance(cb, ExportableState)
-            ]
-        )
+        self.state = TrainerState()
         self.state.is_hyper_param_search = trial is not None
         self.state.train_batch_size = self._train_batch_size
 
@@ -435,9 +403,6 @@ class LLaVATrainer(Trainer):
         use_accelerator_prepare = True if model is self.model else False
 
         if delay_optimizer_creation:
-            if use_accelerator_prepare:
-                self._fsdp_qlora_plugin_updates()
-                self.model = self.accelerator.prepare(self.model)
             self.create_optimizer_and_scheduler(num_training_steps=max_steps)
 
         # prepare using `accelerator` prepare
@@ -453,9 +418,6 @@ class LLaVATrainer(Trainer):
                 model, self.optimizer, self.lr_scheduler = self.accelerator.prepare(
                     self.model, self.optimizer, self.lr_scheduler
                 )
-        elif self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
-            # In this case we are in DDP + LOMO, which should be supported
-            self.optimizer = self.accelerator.prepare(self.optimizer)
 
         if self.is_fsdp_enabled:
             self.model = self.model_wrapped = model
@@ -471,9 +433,7 @@ class LLaVATrainer(Trainer):
         # ckpt loading
         if resume_from_checkpoint is not None:
             if self.is_deepspeed_enabled:
-                deepspeed_load_checkpoint(
-                    self.model_wrapped, resume_from_checkpoint, load_module_strict=not _is_peft_model(self.model)
-                )
+                deepspeed_load_checkpoint(self.model_wrapped, resume_from_checkpoint)
             elif is_sagemaker_mp_enabled() or self.is_fsdp_enabled:
                 self._load_from_checkpoint(resume_from_checkpoint, self.model_wrapped)
 
@@ -508,9 +468,7 @@ class LLaVATrainer(Trainer):
             os.path.join(resume_from_checkpoint, TRAINER_STATE_NAME)
         ):
             self.state = TrainerState.load_from_json(os.path.join(resume_from_checkpoint, TRAINER_STATE_NAME))
-            self.compare_trainer_and_checkpoint_args(self.args, self.state)
-            self._load_callback_state()
-            epochs_trained = int(self.state.global_step // num_update_steps_per_epoch)
+            epochs_trained = self.state.global_step // num_update_steps_per_epoch
             if not args.ignore_data_skip:
                 steps_trained_in_current_epoch = self.state.global_step % (num_update_steps_per_epoch)
                 steps_trained_in_current_epoch *= args.gradient_accumulation_steps
@@ -553,11 +511,26 @@ class LLaVATrainer(Trainer):
         self._total_loss_scalar = 0.0
         self._globalstep_last_logged = self.state.global_step
         model.zero_grad()
-        grad_norm: Optional[float] = None
+
         self.control = self.callback_handler.on_train_begin(args, self.state, self.control)
 
-        if args.eval_on_start:
-            self._evaluate(trial, ignore_keys_for_eval, skip_scheduler=True)
+        # Skip the first epochs_trained epochs to get the random state of the dataloader at the right point.
+        if not args.ignore_data_skip:
+            for epoch in range(epochs_trained):
+                sampler = get_dataloader_sampler(train_dataloader)
+                sampler_kinds = [RandomSampler]
+                if version.parse(accelerate_version) > version.parse("0.23.0"):
+                    sampler_kinds.append(SeedableRandomSampler)
+                is_random_sampler = isinstance(sampler, tuple(sampler_kinds))
+                if not is_random_sampler:
+                    # We just need to begin an iteration to create the randomization of the sampler.
+                    for _ in train_dataloader:
+                        break
+                else:
+                    # Otherwise we need to call the whooooole sampler cause there is some random operation added
+                    # AT THE VERY END!
+                    sampler = sampler if sampler is not None else []
+                    _ = list(sampler)
 
         total_batched_samples = 0
         for epoch in range(epochs_trained, num_train_epochs):
@@ -589,6 +562,7 @@ class LLaVATrainer(Trainer):
 
             step = -1
             for step, inputs in enumerate(epoch_iterator):
+                inputs['d_mode'] = True if (step % 2 == 0) else False
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
@@ -600,17 +574,7 @@ class LLaVATrainer(Trainer):
                             "a `main_input_name` attribute to the model class you are using."
                         )
                     else:
-                        self.state.num_input_tokens_seen += (
-                            torch.sum(
-                                self.accelerator.gather(
-                                    torch.tensor(
-                                        inputs[main_input_name].numel(), device=self.args.device, dtype=torch.int64
-                                    )
-                                )
-                            )
-                            .cpu()
-                            .item()
-                        )
+                        self.state.num_input_tokens_seen += self.accelerator.gather(inputs[main_input_name]).numel()
                 if rng_to_sync:
                     self._load_rng_state(resume_from_checkpoint)
                     rng_to_sync = False
@@ -635,16 +599,12 @@ class LLaVATrainer(Trainer):
 
                 if (
                     args.logging_nan_inf_filter
-                    and not is_torch_xla_available()
+                    and not is_torch_tpu_available()
                     and (torch.isnan(tr_loss_step) or torch.isinf(tr_loss_step))
                 ):
                     # if loss is nan or inf simply add the average of previous logged losses
                     tr_loss += tr_loss / (1 + self.state.global_step - self._globalstep_last_logged)
                 else:
-                    if tr_loss.device != tr_loss_step.device:
-                        raise ValueError(
-                            f"Calculated loss must be on the original device: {tr_loss.device} but device in use is {tr_loss_step.device}"
-                        )
                     tr_loss += tr_loss_step
 
                 self.current_flos += float(self.floating_point_ops(inputs))
@@ -669,35 +629,21 @@ class LLaVATrainer(Trainer):
                         # deepspeed does its own clipping
 
                         if is_sagemaker_mp_enabled() and args.fp16:
-                            _grad_norm = self.optimizer.clip_master_grads(args.max_grad_norm)
+                            self.optimizer.clip_master_grads(args.max_grad_norm)
                         elif self.use_apex:
                             # Revert to normal clipping otherwise, handling Apex or full precision
-                            _grad_norm = nn.utils.clip_grad_norm_(
+                            nn.utils.clip_grad_norm_(
                                 amp.master_params(self.optimizer),
                                 args.max_grad_norm,
                             )
                         else:
-                            _grad_norm = self.accelerator.clip_grad_norm_(
+                            self.accelerator.clip_grad_norm_(
                                 model.parameters(),
                                 args.max_grad_norm,
                             )
 
-                        if (
-                            is_accelerate_available()
-                            and self.accelerator.distributed_type == DistributedType.DEEPSPEED
-                        ):
-                            grad_norm = model.get_global_grad_norm()
-                            # In some cases the grad norm may not return a float
-                            if hasattr(grad_norm, "item"):
-                                grad_norm = grad_norm.item()
-                        else:
-                            grad_norm = _grad_norm
-
-                    self.optimizer.step() 
-                    self.d_optimizer.step() # need to calculate the gradients for the discriminator somewhere, not sure where yet, i think in training_step?
-
-                    self.control = self.callback_handler.on_optimizer_step(args, self.state, self.control)
-
+                    # Optimizer step
+                    self.optimizer.step()
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
                         # Delay optimizer scheduling until metrics are generated
@@ -709,30 +655,25 @@ class LLaVATrainer(Trainer):
                     self.state.epoch = epoch + (step + 1 + steps_skipped) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
 
-                    self._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+                    self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
                     self.control = self.callback_handler.on_substep_end(args, self.state, self.control)
 
                 if self.control.should_epoch_stop or self.control.should_training_stop:
-                    # PyTorch/XLA relies on the data loader to insert the mark_step for
-                    # each step. Since we are breaking the loop early, we need to manually
-                    # insert the mark_step here.
-                    if is_torch_xla_available():
-                        xm.mark_step()
                     break
             if step < 0:
                 logger.warning(
-                    "There seems not to be a single sample in your epoch_iterator, stopping training at step"
+                    "There seems to be not a single sample in your epoch_iterator, stopping training at step"
                     f" {self.state.global_step}! This is expected if you're using an IterableDataset and set"
                     f" num_steps ({max_steps}) higher than the number of available samples."
                 )
                 self.control.should_training_stop = True
 
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
-            self._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+            self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
 
             if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
-                if is_torch_xla_available():
+                if is_torch_tpu_available():
                     # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
                     xm.master_print(met.metrics_report())
                 else:
@@ -750,7 +691,7 @@ class LLaVATrainer(Trainer):
         logger.info("\n\nTraining completed. Do not forget to share your model on huggingface.co/models =)\n\n")
         if args.load_best_model_at_end and self.state.best_model_checkpoint is not None:
             # Wait for everyone to get here so we are sure the model has been saved by process 0.
-            if is_torch_xla_available():
+            if is_torch_tpu_available():
                 xm.rendezvous("load_best_model_at_end")
             elif args.parallel_mode == ParallelMode.DISTRIBUTED:
                 dist.barrier()
@@ -761,8 +702,7 @@ class LLaVATrainer(Trainer):
 
         # add remaining tr_loss
         self._total_loss_scalar += tr_loss.item()
-        effective_global_step = max(self.state.global_step, 0.001)  # Avoid ZeroDivisionError
-        train_loss = self._total_loss_scalar / effective_global_step
+        train_loss = self._total_loss_scalar / self.state.global_step
 
         metrics = speed_metrics(
             "train",
@@ -789,7 +729,7 @@ class LLaVATrainer(Trainer):
             for checkpoint in checkpoints_sorted:
                 if not os.path.samefile(checkpoint, self.state.best_model_checkpoint):
                     logger.info(f"Deleting older checkpoint [{checkpoint}] due to args.save_total_limit")
-                    shutil.rmtree(checkpoint, ignore_errors=True)
+                    shutil.rmtree(checkpoint)
 
         self.control = self.callback_handler.on_train_end(args, self.state, self.control)
 
@@ -802,3 +742,41 @@ class LLaVATrainer(Trainer):
             self._deactivate_neftune(self.model)
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
+
+    # def compute_loss(self, model, inputs, return_outputs=False):
+    #         if self.label_smoother is not None and "labels" in inputs:
+    #             labels = inputs.pop("labels")
+    #         else:
+    #             labels = None
+
+    #         loss_dict = model(**inputs) # i think this is correct
+    #         #outputs = model(**inputs)
+
+    #         ## not sure if we need the rest of this? can we just return the loss?
+
+    #         # Save past state if it exists
+    #         # TODO: this needs to be fixed and made cleaner later.
+    #         if self.args.past_index >= 0:
+    #             self._past = outputs[self.args.past_index]
+
+    #         if labels is not None:
+    #             unwrapped_model = self.accelerator.unwrap_model(model)
+    #             if _is_peft_model(unwrapped_model):
+    #                 model_name = unwrapped_model.base_model.model._get_name()
+    #             else:
+    #                 model_name = unwrapped_model._get_name()
+    #             if model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
+    #                 loss = self.label_smoother(outputs, labels, shift_labels=True)
+    #             else:
+    #                 loss = self.label_smoother(outputs, labels)
+    #         else:
+    #             if isinstance(outputs, dict) and "loss" not in outputs:
+    #                 raise ValueError(
+    #                     "The model did not return a loss from the inputs, only the following keys: "
+    #                     f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
+    #                 )
+    #             # We don't use .loss here since the model may return tuples instead of ModelOutput.
+    #             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+
+    #         return (loss, outputs) if return_outputs else loss
+    

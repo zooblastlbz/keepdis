@@ -94,7 +94,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 images,
                 image_sizes
             )
-
+        d_mode = False
         if d_mode == False:
             return super().forward(
             input_ids=input_ids,
@@ -126,7 +126,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
             final_d_loss = real_d_loss + fake_d_loss
 
-        return {
+        return { # sum the loss  and return as a tuple like the first branch
             "model_loss": model_loss, 
             "d_loss": final_d_loss
         }
