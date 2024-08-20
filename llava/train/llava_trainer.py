@@ -3,9 +3,13 @@ import torch
 import torch.nn as nn
 import math
 import torch.optim as optim
+from packaging import version
 import time
+import sys 
 
 from torch.utils.data import Sampler
+#from accelerate.data_loader import SeedableRandomSampler
+from transformers.integrations.deepspeed import deepspeed_init, deepspeed_load_checkpoint
 
 from transformers import Trainer
 from transformers.trainer import (
@@ -13,19 +17,28 @@ from transformers.trainer import (
     get_parameter_names,
     has_length,
     get_model_param_count,
+    speed_metrics,
+    get_dataloader_sampler,
     hp_params, 
     skip_first_batches,
+    is_torch_tpu_available,
     ALL_LAYERNORM_LAYERS,
     logger,
+    accelerate_version,
     DebugOption, 
     DebugUnderflowOverflow, 
-    TrainerState, 
-    OptimizerNames, 
-    TrainOutput
+    TrainerState,  
+    HPSearchBackend,
+    TrainOutput,
+    shutil,
+    RandomSampler,
+    ParallelMode
 )
-from typing import List, Optional
-TRAINER_STATE_NAME = "trainer_state.json"
 
+from typing import List, Optional
+
+TRAINER_STATE_NAME = "trainer_state.json"
+  
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -562,7 +575,7 @@ class LLaVATrainer(Trainer):
 
             step = -1
             for step, inputs in enumerate(epoch_iterator):
-                inputs['d_mode'] = True if (step % 2 == 0) else False
+                inputs['d_mode'] = True if (step % 2 == 0) else False # set d_mode 
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
