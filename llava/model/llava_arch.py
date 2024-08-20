@@ -141,7 +141,6 @@ class LlavaMetaForCausalLM(ABC):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
 
-        self.disc_data['image'].append(image_features)
         return image_features
 
     def prepare_inputs_labels_for_multimodal(
@@ -206,6 +205,8 @@ class LlavaMetaForCausalLM(ABC):
         else:
             image_features = self.encode_images(images)
 
+        self.disc_data['image'] = image_features
+
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
             raise NotImplementedError
@@ -258,7 +259,7 @@ class LlavaMetaForCausalLM(ABC):
 
 
             #curr input embeds is coming from cur_input_ids_noim which means its already filitered
-            self.disc_data['lang'].append(cur_input_embeds)
+            self.disc_data['lang'] = cur_input_embeds
 
             cur_new_input_embeds = []
             cur_new_labels = []
@@ -279,9 +280,6 @@ class LlavaMetaForCausalLM(ABC):
 
             new_input_embeds.append(cur_new_input_embeds)
             new_labels.append(cur_new_labels)
-
-        # call discriminator: 
-        self.discriminator.preprocess_and_call_train(self.disc_data)
 
         # Truncate sequences to max length as image embeddings can make the sequence longer
         tokenizer_model_max_length = getattr(self.config, 'tokenizer_model_max_length', None)

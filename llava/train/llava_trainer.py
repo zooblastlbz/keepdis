@@ -8,8 +8,10 @@ import time
 import sys 
 
 from torch.utils.data import Sampler
+from transformers.trainer_utils import SchedulerType
 #from accelerate.data_loader import SeedableRandomSampler
 from transformers.integrations.deepspeed import deepspeed_init, deepspeed_load_checkpoint
+from transformers.optimization import get_scheduler
 
 from transformers import Trainer
 from transformers.trainer import (
@@ -35,9 +37,11 @@ from transformers.trainer import (
     ParallelMode
 )
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 TRAINER_STATE_NAME = "trainer_state.json"
+lr = 0.0002
+beta1 = 0.5
   
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -122,7 +126,7 @@ def get_length_grouped_indices(lengths, batch_size, world_size, generator=None, 
 
 
 class LengthGroupedSampler(Sampler):
-    r"""
+    """
     Sampler that samples indices in a way that groups together features of the dataset of roughly the same length while
     keeping a bit of randomness.
     """
@@ -176,6 +180,20 @@ class LLaVATrainer(Trainer):
             )
         else:
             return super()._get_train_sampler()
+
+        
+    def create_optimizer_and_scheduler(self, num_training_steps: int):
+        """
+        Setup the optimizer and the learning rate scheduler.
+
+        We provide a reasonable default that works well. If you want to use something else, you can pass a tuple in the
+        Trainer's init through `optimizers`, or subclass and override this method (or `create_optimizer` and/or
+        `create_scheduler`) in a subclass.
+        """
+        self.create_optimizer()
+
+        optimizer = self.optimizer
+        self.create_scheduler(num_training_steps=num_training_steps, optimizer=optimizer)
 
     def create_optimizer(self):
         """
@@ -255,6 +273,8 @@ class LLaVATrainer(Trainer):
                         logger.debug(f"bitsandbytes: will optimize {module} in fp32")
                 logger.info(f"skipped: {skipped/2**20}M params")
 
+        self.d_optimizer = optim.Adam(opt_model.discriminator.model.parameters(), lr= lr, betas=(beta1, 0.999)) # how to get discriminator parameters?
+        
         return self.optimizer
 
     def _save_checkpoint(self, model, trial, metrics=None):
@@ -657,6 +677,11 @@ class LLaVATrainer(Trainer):
 
                     # Optimizer step
                     self.optimizer.step()
+                    
+                    if inputs["d_mode"] == True:
+                        self.d_optimizer.step()
+                        model.discriminator.model.zero_grad() 
+
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
                         # Delay optimizer scheduling until metrics are generated
@@ -755,41 +780,3 @@ class LLaVATrainer(Trainer):
             self._deactivate_neftune(self.model)
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
-
-    # def compute_loss(self, model, inputs, return_outputs=False):
-    #         if self.label_smoother is not None and "labels" in inputs:
-    #             labels = inputs.pop("labels")
-    #         else:
-    #             labels = None
-
-    #         loss_dict = model(**inputs) # i think this is correct
-    #         #outputs = model(**inputs)
-
-    #         ## not sure if we need the rest of this? can we just return the loss?
-
-    #         # Save past state if it exists
-    #         # TODO: this needs to be fixed and made cleaner later.
-    #         if self.args.past_index >= 0:
-    #             self._past = outputs[self.args.past_index]
-
-    #         if labels is not None:
-    #             unwrapped_model = self.accelerator.unwrap_model(model)
-    #             if _is_peft_model(unwrapped_model):
-    #                 model_name = unwrapped_model.base_model.model._get_name()
-    #             else:
-    #                 model_name = unwrapped_model._get_name()
-    #             if model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
-    #                 loss = self.label_smoother(outputs, labels, shift_labels=True)
-    #             else:
-    #                 loss = self.label_smoother(outputs, labels)
-    #         else:
-    #             if isinstance(outputs, dict) and "loss" not in outputs:
-    #                 raise ValueError(
-    #                     "The model did not return a loss from the inputs, only the following keys: "
-    #                     f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-    #                 )
-    #             # We don't use .loss here since the model may return tuples instead of ModelOutput.
-    #             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
-    #         return (loss, outputs) if return_outputs else loss
-    

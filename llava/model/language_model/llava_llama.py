@@ -49,8 +49,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.disc_data = { 
-            "images": [], 
-            "lang": [],
+            "image": None, 
+            "lang": None,
         }
         self.discriminator = Discriminator()
 
@@ -94,6 +94,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 images,
                 image_sizes
             )
+
         if d_mode == False:
             return super().forward(
             input_ids=input_ids,
@@ -107,10 +108,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict
         )
-        else: 
-            real_d_loss = self.discriminator.evaluate(self.disc_data["lang"])[2] # are we training discrim here? should we be calculating gradients?
-            fake_d_loss = self.discriminator.evaluate(self.disc_data["images"])[2]
-            model_loss = super().forward( # i dont think we can directly unpack the output of forward() so i convert to tuple: may not be necessary
+        else:
+            d_loss = self.discriminator.call_discrim(self.disc_data) # d loss is sum of disc loss on images and lang, i think it should be just images 
+            model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 position_ids=position_ids,
@@ -121,14 +121,11 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict
-            )[0] # i think the loss is the first item?
+            )
+            
+            model_output.loss = model_output.loss + d_loss # not sure if add or subtract cannot tell
 
-            final_d_loss = real_d_loss + fake_d_loss
-
-        return { # sum the loss  and return as a tuple like the first branch
-            "model_loss": model_loss, 
-            "d_loss": final_d_loss
-        }
+        return model_output
 
     @torch.no_grad()
     def generate(

@@ -26,8 +26,7 @@ class Discriminator:
 
     def __init__(self): 
         self.model = EasyNeuralNetwork(5120, 2)
-
-    def evaluate(self,model, loss_function, X, y):
+    def evaluate(self, model, loss_function, X, y):
         predictions = model(X)  # pass thorugh model
         # print("shape of y: ", y.shape)
         # print("prediction: ", predictions)
@@ -35,7 +34,27 @@ class Discriminator:
         predictions = predictions.argmax(dim=1).cpu().numpy()
         acc = (predictions == y.cpu().numpy()).mean()
         return predictions, acc, loss
+    
 
+    def call_discrim(self, data):
+        device = 'cuda'
+        loss_function = nn.BCELoss() # from DCGAN
+
+        img_tok = data["image"]
+        lang_tok = data["lang"]
+        
+        img_label = torch.full((img_tok.size(0),), 1, dtype=torch.float, device=device)  # 1 for images
+        lang_label = torch.full((lang_tok.size(0),), 0, dtype=torch.float, device=device)  # 0 for language
+
+        _, _, img_loss = self.evaluate(self. model, loss_function, img_tok, img_label)
+        _, _, lang_loss = self.evaluate(self.model, loss_function, lang_tok, lang_label)
+
+        img_loss.backward()
+        lang_loss.backward()
+
+        final_loss = img_loss + lang_loss
+
+        return final_loss
 
     def train(self,training_dataloader, IMAGE_SHAPE=1024 * 5, NUM_CLASSES=2, device='cuda', EPOCHS=1):
         self.model.train(mode=True)
