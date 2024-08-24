@@ -52,7 +52,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             "image": None, 
             "lang": None,
         }
-        self.discriminator = Discriminator()
+        self.discriminator = Discriminator(5120, 2) # hard coding in sizes for now
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -96,20 +96,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
 
         if d_mode == False:
-            return super().forward(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            labels=labels,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict
-        )
-        else:
-            d_loss = self.discriminator.call_discrim(self.disc_data) # d loss is sum of disc loss on images and lang, i think it should be just images 
+            d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is sum of disc loss on images and lang
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -123,7 +110,25 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 return_dict=return_dict
             )
             
-            model_output.loss = model_output.loss + d_loss # not sure if add or subtract cannot tell
+            model_output.loss = d_loss # returning only discriminator loss
+
+            return model_output
+        else:
+            d_loss = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is only the disc loss on the image tokens (following DCGAN)
+            model_output = super().forward(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict
+            )
+            
+            model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
 
         return model_output
 

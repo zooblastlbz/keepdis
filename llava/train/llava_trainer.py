@@ -273,7 +273,7 @@ class LLaVATrainer(Trainer):
                         logger.debug(f"bitsandbytes: will optimize {module} in fp32")
                 logger.info(f"skipped: {skipped/2**20}M params")
 
-        self.d_optimizer = optim.Adam(opt_model.discriminator.model.parameters(), lr= lr, betas=(beta1, 0.999)) # how to get discriminator parameters?
+        self.d_optimizer = optim.Adam(opt_model.discriminator.parameters(), lr= lr, betas=(beta1, 0.999)) # how to get discriminator parameters?
         
         return self.optimizer
 
@@ -676,11 +676,13 @@ class LLaVATrainer(Trainer):
                             )
 
                     # Optimizer step
-                    self.optimizer.step()
-                    
+
                     if inputs["d_mode"] == True:
                         self.d_optimizer.step()
-                        model.discriminator.model.zero_grad() 
+                        model.discriminator.zero_grad() 
+                    
+                    else:
+                         self.optimizer.step()
 
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
