@@ -1,13 +1,13 @@
 #!/bin/bash
 
 ### The following requests all resources on 1 DGX-1 node
-#PBS -l select=1:ngpus=2:ncpus=16
+#PBS -l select=1:ngpus=1:ncpus=16
 
 ### Specify amount of time required
-#PBS -l walltime=20:00:00
+#PBS -l walltime=30:00:00
 
 ### Specify project code
-#PBS -P 12002486
+#PBS -P personal-chih0001
 
 ### Specify name for job
 #PBS -N llava_distraction_lora
@@ -29,7 +29,7 @@ export CUDA_VISIBLE_DEVICES=0,1
 
 cd /home/users/ntu/chih0001/scratch/VLM/sglang/benchmark/llava_bench
 
-python -m llava.eval.model_vqa \
+python -m llava.eval.model_vqa_cot \
     --model-path /home/users/ntu/chih0001/scratch/model/lora/llava-v1.5-7b-DSLLM-lora \
     --model-base /home/users/ntu/chih0001/scratch/model/llava-v1.5-7b \
     --question-file /home/users/ntu/chih0001/scratch/VLM/SGLang/benchmark/llava_bench/questions/CoT/cot_explain_questions.jsonl \
