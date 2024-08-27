@@ -73,8 +73,8 @@ def eval_model(args):
         # 1. 提取问题ID、图像文件和文本内容
         idx = line["question_id"]
         image_file = line["image"]
-        qs = line["text1"]
-        qs_text2 = line["text2"]
+        qs = line["prompt1"]
+        qs_text2 = line["prompt2"]
         cur_prompt = qs
         cur_prompt_text2 = qs_text2
         
@@ -142,9 +142,9 @@ def eval_model(args):
         # 5. 生成答案ID并写入答案文件
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
-                                   "prompt_text1": cur_prompt,
+                                   "prompt1": cur_prompt,
                                    "text1": outputs,
-                                   "prompt_text2": cur_prompt_text2,
+                                   "prompt2": cur_prompt_text2,
                                    "text2": outputs_text2,
                                    "answer_id": ans_id,
                                    "model_id": model_name,
