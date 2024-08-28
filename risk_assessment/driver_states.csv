@@ -1,0 +1,337 @@
+timestamp,task,state,duration
+0,Distraction Detection,Drinking,8
+8,Distraction Detection,Normal Driving,1
+9,Emotion Recognition,Disgust,1
+10,Emotion Recognition,Disgust,2
+12,Fatigue Detection,Non-Drowsy,1
+13,Fatigue Detection,Non-Drowsy,6
+19,Emotion Recognition,Disgust,8
+27,Emotion Recognition,Disgust,2
+29,Fatigue Detection,Non-Drowsy,4
+33,Emotion Recognition,Sad,5
+38,Distraction Detection,Drinking,6
+44,Emotion Recognition,Happy,4
+48,Distraction Detection,Adjusting Glasses,8
+56,Emotion Recognition,Angry,3
+59,Distraction Detection,Dropping (Fatigue),9
+68,Emotion Recognition,Angry,8
+76,Distraction Detection,Touching Hairs & Makeup,4
+80,Fatigue Detection,Non-Drowsy,6
+86,Emotion Recognition,Happy,6
+92,Distraction Detection,Touching Hairs & Makeup,4
+96,Fatigue Detection,Non-Drowsy,3
+99,Fatigue Detection,Non-Drowsy,8
+107,Fatigue Detection,Drowsy,5
+112,Emotion Recognition,Angry,4
+116,Fatigue Detection,Drowsy,7
+123,Emotion Recognition,Disgust,2
+125,Distraction Detection,Dropping (Fatigue),8
+133,Distraction Detection,Normal Driving,8
+141,Distraction Detection,Texting Right,5
+146,Fatigue Detection,Drowsy,7
+153,Distraction Detection,Reaching Behind,2
+155,Fatigue Detection,Drowsy,6
+161,Emotion Recognition,Sad,6
+167,Distraction Detection,Phoning Right,10
+177,Fatigue Detection,Non-Drowsy,6
+183,Distraction Detection,Reaching Behind,3
+186,Fatigue Detection,Drowsy,4
+190,Emotion Recognition,Sad,4
+194,Distraction Detection,Drinking,3
+197,Fatigue Detection,Drowsy,9
+206,Emotion Recognition,Sad,6
+212,Emotion Recognition,Disgust,3
+215,Fatigue Detection,Non-Drowsy,1
+216,Emotion Recognition,Disgust,10
+226,Distraction Detection,Touching Hairs & Makeup,8
+234,Distraction Detection,Drinking,8
+242,Fatigue Detection,Non-Drowsy,1
+243,Emotion Recognition,Angry,10
+253,Distraction Detection,Drinking,1
+254,Emotion Recognition,Surprise,3
+257,Emotion Recognition,Surprise,9
+266,Fatigue Detection,Drowsy,5
+271,Emotion Recognition,Happy,8
+279,Fatigue Detection,Drowsy,5
+284,Fatigue Detection,Non-Drowsy,1
+285,Fatigue Detection,Drowsy,9
+294,Distraction Detection,Texting Right,1
+295,Fatigue Detection,Non-Drowsy,9
+304,Distraction Detection,Adjusting Glasses,8
+312,Emotion Recognition,Sad,10
+322,Fatigue Detection,Non-Drowsy,4
+326,Distraction Detection,Phoning Left,5
+331,Emotion Recognition,Angry,2
+333,Distraction Detection,Texting Right,4
+337,Fatigue Detection,Drowsy,7
+344,Fatigue Detection,Non-Drowsy,2
+346,Distraction Detection,Texting Left,9
+355,Emotion Recognition,Happy,4
+359,Fatigue Detection,Drowsy,6
+365,Distraction Detection,Phoning Left,4
+369,Fatigue Detection,Drowsy,5
+374,Distraction Detection,Dropping (Fatigue),6
+380,Emotion Recognition,Sad,2
+382,Emotion Recognition,Sad,7
+389,Emotion Recognition,Fear,5
+394,Distraction Detection,Touching Hairs & Makeup,9
+403,Emotion Recognition,Sad,10
+413,Emotion Recognition,Happy,1
+414,Fatigue Detection,Non-Drowsy,10
+424,Emotion Recognition,Happy,4
+428,Distraction Detection,Drinking,8
+436,Emotion Recognition,Surprise,1
+437,Emotion Recognition,Fear,8
+445,Emotion Recognition,Surprise,6
+451,Fatigue Detection,Drowsy,5
+456,Distraction Detection,Reaching Behind,4
+460,Distraction Detection,Touching Hairs & Makeup,3
+463,Emotion Recognition,Fear,7
+470,Emotion Recognition,Happy,2
+472,Distraction Detection,Texting Left,1
+473,Emotion Recognition,Surprise,5
+478,Emotion Recognition,Surprise,9
+487,Fatigue Detection,Drowsy,3
+490,Emotion Recognition,Happy,10
+500,Fatigue Detection,Drowsy,7
+507,Emotion Recognition,Disgust,1
+508,Emotion Recognition,Sad,2
+510,Fatigue Detection,Non-Drowsy,4
+514,Fatigue Detection,Drowsy,3
+517,Distraction Detection,Touching Hairs & Makeup,10
+527,Emotion Recognition,Surprise,7
+534,Fatigue Detection,Non-Drowsy,7
+541,Distraction Detection,Dropping (Fatigue),6
+547,Emotion Recognition,Fear,3
+550,Distraction Detection,Dropping (Fatigue),9
+559,Distraction Detection,Dropping (Fatigue),7
+566,Fatigue Detection,Drowsy,3
+569,Emotion Recognition,Happy,10
+579,Distraction Detection,Phoning Right,1
+580,Distraction Detection,Phoning Right,6
+586,Distraction Detection,Normal Driving,8
+594,Fatigue Detection,Non-Drowsy,7
+601,Distraction Detection,Touching Hairs & Makeup,10
+611,Distraction Detection,Reaching Behind,2
+613,Distraction Detection,Touching Hairs & Makeup,4
+617,Emotion Recognition,Angry,1
+618,Distraction Detection,Texting Right,8
+626,Emotion Recognition,Surprise,5
+631,Distraction Detection,Normal Driving,6
+637,Distraction Detection,Touching Hairs & Makeup,2
+639,Distraction Detection,Phoning Left,8
+647,Fatigue Detection,Non-Drowsy,5
+652,Emotion Recognition,Surprise,9
+661,Emotion Recognition,Surprise,1
+662,Emotion Recognition,Sad,9
+671,Distraction Detection,Texting Right,2
+673,Emotion Recognition,Fear,5
+678,Emotion Recognition,Happy,5
+683,Distraction Detection,Reaching Behind,10
+693,Emotion Recognition,Surprise,9
+702,Emotion Recognition,Fear,3
+705,Fatigue Detection,Drowsy,2
+707,Fatigue Detection,Non-Drowsy,4
+711,Fatigue Detection,Drowsy,5
+716,Distraction Detection,Drinking,10
+726,Emotion Recognition,Sad,3
+729,Emotion Recognition,Sad,3
+732,Fatigue Detection,Non-Drowsy,5
+737,Emotion Recognition,Angry,3
+740,Emotion Recognition,Angry,5
+745,Emotion Recognition,Disgust,6
+751,Fatigue Detection,Non-Drowsy,10
+761,Emotion Recognition,Fear,5
+766,Distraction Detection,Dropping (Fatigue),5
+771,Distraction Detection,Texting Right,3
+774,Fatigue Detection,Non-Drowsy,9
+783,Fatigue Detection,Drowsy,4
+787,Emotion Recognition,Disgust,7
+794,Fatigue Detection,Non-Drowsy,9
+803,Distraction Detection,Texting Right,6
+809,Distraction Detection,Texting Left,10
+819,Fatigue Detection,Non-Drowsy,9
+828,Distraction Detection,Drinking,5
+833,Emotion Recognition,Angry,7
+840,Emotion Recognition,Fear,9
+849,Distraction Detection,Touching Hairs & Makeup,2
+851,Fatigue Detection,Non-Drowsy,2
+853,Emotion Recognition,Surprise,2
+855,Emotion Recognition,Angry,10
+865,Distraction Detection,Texting Left,5
+870,Fatigue Detection,Non-Drowsy,9
+879,Distraction Detection,Drinking,4
+883,Fatigue Detection,Drowsy,6
+889,Distraction Detection,Texting Right,7
+896,Distraction Detection,Adjusting Glasses,5
+901,Distraction Detection,Reaching Behind,8
+909,Fatigue Detection,Drowsy,6
+915,Fatigue Detection,Non-Drowsy,8
+923,Emotion Recognition,Angry,2
+925,Fatigue Detection,Drowsy,2
+927,Distraction Detection,Reaching Behind,5
+932,Fatigue Detection,Drowsy,9
+941,Distraction Detection,Phoning Right,4
+945,Fatigue Detection,Non-Drowsy,4
+949,Emotion Recognition,Angry,8
+957,Fatigue Detection,Non-Drowsy,2
+959,Emotion Recognition,Disgust,3
+962,Emotion Recognition,Angry,6
+968,Emotion Recognition,Happy,5
+973,Fatigue Detection,Drowsy,3
+976,Distraction Detection,Texting Right,4
+980,Emotion Recognition,Angry,10
+990,Distraction Detection,Texting Right,8
+998,Fatigue Detection,Non-Drowsy,5
+1003,Emotion Recognition,Fear,10
+1013,Distraction Detection,Normal Driving,7
+1020,Emotion Recognition,Sad,6
+1026,Fatigue Detection,Drowsy,5
+1031,Emotion Recognition,Happy,1
+1032,Distraction Detection,Texting Right,8
+1040,Distraction Detection,Touching Hairs & Makeup,6
+1046,Distraction Detection,Adjusting Glasses,3
+1049,Distraction Detection,Phoning Right,8
+1057,Distraction Detection,Texting Right,5
+1062,Fatigue Detection,Drowsy,7
+1069,Fatigue Detection,Non-Drowsy,6
+1075,Fatigue Detection,Drowsy,10
+1085,Emotion Recognition,Disgust,6
+1091,Fatigue Detection,Non-Drowsy,7
+1098,Fatigue Detection,Drowsy,2
+1100,Distraction Detection,Normal Driving,6
+1106,Fatigue Detection,Non-Drowsy,3
+1109,Distraction Detection,Drinking,9
+1118,Emotion Recognition,Happy,9
+1127,Emotion Recognition,Fear,6
+1133,Fatigue Detection,Non-Drowsy,4
+1137,Fatigue Detection,Drowsy,3
+1140,Distraction Detection,Normal Driving,4
+1144,Fatigue Detection,Non-Drowsy,1
+1145,Emotion Recognition,Angry,8
+1153,Distraction Detection,Normal Driving,4
+1157,Distraction Detection,Adjusting Glasses,7
+1164,Emotion Recognition,Happy,2
+1166,Distraction Detection,Texting Right,4
+1170,Fatigue Detection,Drowsy,4
+1174,Distraction Detection,Touching Hairs & Makeup,2
+1176,Fatigue Detection,Non-Drowsy,2
+1178,Emotion Recognition,Angry,3
+1181,Distraction Detection,Adjusting Glasses,8
+1189,Emotion Recognition,Angry,2
+1191,Fatigue Detection,Drowsy,5
+1196,Emotion Recognition,Fear,6
+1202,Fatigue Detection,Non-Drowsy,3
+1205,Distraction Detection,Phoning Left,4
+1209,Distraction Detection,Reaching Behind,6
+1215,Emotion Recognition,Sad,3
+1218,Distraction Detection,Phoning Left,2
+1220,Fatigue Detection,Non-Drowsy,6
+1226,Distraction Detection,Drinking,6
+1232,Distraction Detection,Dropping (Fatigue),1
+1233,Emotion Recognition,Sad,1
+1234,Fatigue Detection,Drowsy,2
+1236,Fatigue Detection,Non-Drowsy,10
+1246,Distraction Detection,Adjusting Glasses,6
+1252,Distraction Detection,Dropping (Fatigue),2
+1254,Distraction Detection,Dropping (Fatigue),2
+1256,Distraction Detection,Dropping (Fatigue),10
+1266,Distraction Detection,Phoning Right,6
+1272,Fatigue Detection,Drowsy,8
+1280,Fatigue Detection,Non-Drowsy,4
+1284,Fatigue Detection,Non-Drowsy,4
+1288,Emotion Recognition,Disgust,3
+1291,Emotion Recognition,Disgust,1
+1292,Fatigue Detection,Non-Drowsy,3
+1295,Emotion Recognition,Angry,10
+1305,Emotion Recognition,Fear,9
+1314,Emotion Recognition,Sad,2
+1316,Emotion Recognition,Sad,8
+1324,Distraction Detection,Texting Left,2
+1326,Fatigue Detection,Non-Drowsy,9
+1335,Distraction Detection,Adjusting Glasses,7
+1342,Distraction Detection,Phoning Left,8
+1350,Fatigue Detection,Drowsy,9
+1359,Fatigue Detection,Non-Drowsy,10
+1369,Distraction Detection,Normal Driving,4
+1373,Emotion Recognition,Happy,7
+1380,Distraction Detection,Phoning Left,2
+1382,Fatigue Detection,Drowsy,1
+1383,Distraction Detection,Drinking,5
+1388,Fatigue Detection,Non-Drowsy,4
+1392,Distraction Detection,Texting Right,7
+1399,Distraction Detection,Texting Right,2
+1401,Emotion Recognition,Sad,7
+1408,Distraction Detection,Adjusting Glasses,9
+1417,Distraction Detection,Reaching Behind,4
+1421,Fatigue Detection,Non-Drowsy,1
+1422,Emotion Recognition,Surprise,3
+1425,Fatigue Detection,Non-Drowsy,5
+1430,Distraction Detection,Adjusting Glasses,3
+1433,Emotion Recognition,Surprise,9
+1442,Fatigue Detection,Non-Drowsy,7
+1449,Emotion Recognition,Sad,7
+1456,Fatigue Detection,Non-Drowsy,8
+1464,Fatigue Detection,Drowsy,8
+1472,Distraction Detection,Touching Hairs & Makeup,7
+1479,Fatigue Detection,Drowsy,4
+1483,Fatigue Detection,Drowsy,4
+1487,Fatigue Detection,Drowsy,10
+1497,Emotion Recognition,Surprise,7
+1504,Distraction Detection,Drinking,7
+1511,Distraction Detection,Texting Right,6
+1517,Emotion Recognition,Angry,9
+1526,Distraction Detection,Adjusting Glasses,6
+1532,Fatigue Detection,Non-Drowsy,1
+1533,Emotion Recognition,Sad,7
+1540,Fatigue Detection,Non-Drowsy,7
+1547,Distraction Detection,Drinking,7
+1554,Distraction Detection,Drinking,6
+1560,Fatigue Detection,Non-Drowsy,10
+1570,Distraction Detection,Touching Hairs & Makeup,4
+1574,Emotion Recognition,Sad,7
+1581,Fatigue Detection,Non-Drowsy,5
+1586,Fatigue Detection,Drowsy,10
+1596,Emotion Recognition,Disgust,9
+1605,Distraction Detection,Adjusting Glasses,7
+1612,Distraction Detection,Texting Left,1
+1613,Distraction Detection,Texting Left,2
+1615,Emotion Recognition,Angry,8
+1623,Distraction Detection,Reaching Behind,1
+1624,Emotion Recognition,Happy,5
+1629,Fatigue Detection,Non-Drowsy,9
+1638,Distraction Detection,Drinking,9
+1647,Fatigue Detection,Non-Drowsy,8
+1655,Distraction Detection,Normal Driving,1
+1656,Distraction Detection,Phoning Right,6
+1662,Emotion Recognition,Sad,4
+1666,Distraction Detection,Texting Right,5
+1671,Fatigue Detection,Non-Drowsy,4
+1675,Emotion Recognition,Fear,7
+1682,Fatigue Detection,Non-Drowsy,5
+1687,Distraction Detection,Texting Left,4
+1691,Fatigue Detection,Drowsy,1
+1692,Fatigue Detection,Non-Drowsy,5
+1697,Emotion Recognition,Sad,3
+1700,Fatigue Detection,Non-Drowsy,2
+1702,Distraction Detection,Phoning Right,1
+1703,Emotion Recognition,Surprise,7
+1710,Fatigue Detection,Drowsy,4
+1714,Distraction Detection,Drinking,2
+1716,Emotion Recognition,Sad,1
+1717,Fatigue Detection,Drowsy,6
+1723,Distraction Detection,Dropping (Fatigue),10
+1733,Emotion Recognition,Disgust,7
+1740,Emotion Recognition,Angry,8
+1748,Emotion Recognition,Fear,6
+1754,Distraction Detection,Reaching Behind,2
+1756,Emotion Recognition,Happy,6
+1762,Distraction Detection,Texting Left,4
+1766,Fatigue Detection,Drowsy,2
+1768,Fatigue Detection,Drowsy,4
+1772,Distraction Detection,Adjusting Glasses,2
+1774,Emotion Recognition,Disgust,9
+1783,Fatigue Detection,Drowsy,2
+1785,Distraction Detection,Phoning Right,1
+1786,Distraction Detection,Texting Left,5
+1791,Distraction Detection,Adjusting Glasses,9
