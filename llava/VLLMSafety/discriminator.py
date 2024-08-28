@@ -27,21 +27,24 @@ class Discriminator(nn.Module):
         lang_tok = data["lang"]
 
         img_tok = img_tok.view(-1, 5120) # image tokens have dim=3
-  
-        img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
-        lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
 
         img_pred = self.linear(img_tok) # BCE expects output from a sigmoid (i think)
         lang_pred = self.linear(lang_tok)
-        
-        img_loss = loss_function(img_pred, img_label)
-        lang_loss = loss_function(lang_pred, lang_label) # BCE expects output from a sigmoid (i think)
 
         if d_mode == True: 
+            img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
+            lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
+
+            img_loss = loss_function(img_pred, img_label)
+            lang_loss = loss_function(lang_pred, lang_label) 
+
             return img_loss + lang_loss # returning both losses to train disc
         
         else:
-            return img_loss # returning image loss to maximize disc loss when training generator
+            lang_label = torch.full((img_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
+            img_with_lang_label_loss = loss_function(img_pred, lang_label) # trying to follow DCGAN
+
+            return img_with_lang_label_loss # returning image loss to maximize disc loss when training generator
         
 # class Discriminator:
 

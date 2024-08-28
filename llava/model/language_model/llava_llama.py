@@ -95,8 +95,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes
             )
 
-        if d_mode == False:
-            d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is sum of disc loss on images and lang
+        if d_mode == True:
+            d_loss = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -114,7 +114,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
             return model_output
         else:
-            d_loss = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is only the disc loss on the image tokens (following DCGAN)
+            d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is disc loss on the image toke with lang labels (following DCGAN)
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,

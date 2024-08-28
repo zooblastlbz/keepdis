@@ -5,6 +5,7 @@ import math
 import torch.optim as optim
 from packaging import version
 import time
+import deepspeed
 import sys 
 
 from torch.utils.data import Sampler
@@ -162,8 +163,6 @@ class LengthGroupedSampler(Sampler):
 class LLaVATrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        #self.d_optimizer = optim.Adam(self.model.discriminator(), lr=lr, betas=(beta1, 0.999)) # what kind of optimizer do we want to use?
-        # also need to figure out how to access the discriminator, also what learning rate/betas do we want?
 
 
     def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
@@ -679,7 +678,7 @@ class LLaVATrainer(Trainer):
 
                     if inputs["d_mode"] == True:
                         self.d_optimizer.step()
-                        model.discriminator.zero_grad() 
+                        model.module.base_model.model.discriminator.zero_grad() 
                     
                     else:
                          self.optimizer.step()
