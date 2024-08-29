@@ -7,7 +7,7 @@
 #PBS -l walltime=30:00:00
 
 ### Specify project code
-#PBS -P personal-chih0001
+#PBS -P 12002486
 
 ### Specify name for job
 #PBS -N CoT-Distraction
