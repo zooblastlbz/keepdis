@@ -50,6 +50,7 @@ pip install flash-attn --no-build-isolation
 
 ## Download training data for MLP
 ```Shell
+sudo apt install unzip
 mkdir blip_laion
 cd blip_laion
 wget -O images.zip "https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain/resolve/main/images.zip?download=true"
