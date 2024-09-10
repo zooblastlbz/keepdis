@@ -32,7 +32,7 @@ class MobileNetV2VisionTower(nn.Module):
             return
 
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
-        self.vision_tower = tflite.Interpreter(model_path=hf_hub_download(repo_id="mikarbx/mobilenetv2", filename="mobilenet_v2_0.35_128_tl_without_classification_head.tflite"))
+        self.vision_tower = tflite.Interpreter(model_path=hf_hub_download(repo_id="mikarbx/mobilenetv2", filename="mobilenet_v2_0.35_128_tl_without_classification_head.tflite", force_download=True))
         self.vision_tower.allocate_tensors()
 
         self.input_details = self.vision_tower.get_input_details()
@@ -65,6 +65,9 @@ class MobileNetV2VisionTower(nn.Module):
             return self.process_single_image(images)
 
     def process_single_image(self, image):
+        # import pdb
+        # pdb.set_trace()
+
         # Ensure correct dtype and move to CPU if needed
         if image.dtype == torch.bfloat16:
             image = image.to(torch.float32)
@@ -82,7 +85,26 @@ class MobileNetV2VisionTower(nn.Module):
             self.run_inference_on_single_image(image_numpy[i:i+1])
             for i in range(image_numpy.shape[0])
         ]
+
         output_batch_tensor = torch.cat(output_list, dim=0)
+
+        # Test code
+        # image_tensor = image[0].unsqueeze(0)
+        # image_tensor = (image_tensor * 255).to(torch.uint8)
+        # image_tensor = image_tensor.to(torch.float32) / 255.0
+        # import io
+        # from torchvision import transforms
+        # pil_image = transforms.ToPILImage()(image_tensor.permute(0, 3, 1, 2).squeeze(0))
+        # byte_array = io.BytesIO()
+        # pil_image.save(byte_array, format='PNG')
+        # byte_array = byte_array.getvalue()
+        # import base64
+        # base64_string = base64.b64encode(byte_array).decode('utf-8')
+        # print(base64_string)
+        # self.vision_tower.set_tensor(self.input_details[0]['index'], image_tensor)
+        # self.vision_tower.invoke()
+        # output_data = self.vision_tower.get_tensor(self.output_details[0]['index'])
+        # print(torch.tensor(output_data).unsqueeze(1))
 
         # Ensure correct dtype and move to GPU if needed
         if output_batch_tensor.dtype == torch.float32:
@@ -107,4 +129,4 @@ class MobileNetV2VisionTower(nn.Module):
     @property
     def hidden_size(self):
         # Get output size from TFLite model details
-        return self.output_details[0]["shape"][-1]
+        return int(self.output_details[0]["shape"][-1])
