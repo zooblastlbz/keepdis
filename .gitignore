@@ -33,3 +33,10 @@ ckpts*
 
 # Demo
 serve_images/
+
+blip_laion/**/*
+playground/data/coco/*
+playground/data/ocr_vqa/*
+playground/data/textvqa/*
+playground/data/gqa/*
+playground/data/vg/*
