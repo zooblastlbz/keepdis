@@ -40,6 +40,23 @@ class MobileNetV2VisionTower(nn.Module):
 
         self.is_loaded = True
 
+    def save_images(self, tensor_batch, save_path):
+        # Loop through the batch and save each image
+        for i in range(tensor_batch.shape[0]):  # Iterate over the batch (32 images)
+            image_tensor = tensor_batch[i]  # Extract the i-th image tensor, shape [3, 128, 128]
+
+            # Convert the tensor from [3, 128, 128] (C, H, W) to [128, 128, 3] (H, W, C)
+            image_np = image_tensor.permute(1, 2, 0).numpy()
+
+            # Scale the values from [0, 1] (PyTorch format) to [0, 255] for saving
+            image_np = (image_np * 255).astype(np.uint8)
+
+            # Convert the NumPy array to a PIL Image
+            image_pil = Image.fromarray(image_np)
+
+            # Save the image as a PNG file
+            image_pil.save(f"{save_path}/image_{i}.png")
+
     @torch.no_grad()
     def forward(self, images):
         if isinstance(images, list):
@@ -53,6 +70,10 @@ class MobileNetV2VisionTower(nn.Module):
             image = image.to(torch.float32)
         if image.is_cuda:
             image = image.cpu()
+
+        # test if images are prepared correctly
+        # self.save_images(image, './test_images')
+        
         image = image.permute(0, 2, 3, 1)  # Convert from NCHW to NHWC format
         image_numpy = image.numpy()
         
