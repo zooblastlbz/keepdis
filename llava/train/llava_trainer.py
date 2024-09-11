@@ -829,7 +829,7 @@ class LLaVATrainer(Trainer):
                 "lang_total": discrim_dict["img_is_correct"].size(0)
             }
 
-            with open("/home/smirrashidi/return_dict.json", "a") as json_file:
+            with open("/home/smirrashidi/return_dict2.json", "a") as json_file:
                 json.dump("eval", json_file)
                 json_file.write("\n")  
                 json.dump(json_dict, json_file)

@@ -18,7 +18,6 @@ class Discriminator(nn.Module):
         x = torch.sigmoid(self.fc2(x))
 
         return x
-
  
     def forward(self, data, d_mode):
         device = 'cuda'
@@ -32,22 +31,19 @@ class Discriminator(nn.Module):
         img_pred = self.linear(img_tok) # BCE expects output from a sigmoid (i think)
         lang_pred = self.linear(lang_tok)
 
-        img_pred_binary = torch.ge(img_pred, 0.5).float().to(torch.bfloat16)
-        lang_pred_binary = torch.ge(lang_pred, 0.5).float().to(torch.bfloat16)
-
         if d_mode == True: 
             img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
             lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
 
-            img_loss = loss_function(img_pred_binary, img_label)
-            lang_loss = loss_function(lang_pred_binary, lang_label) 
-
             img_loss = loss_function(img_pred, img_label)
             lang_loss = loss_function(lang_pred, lang_label) 
+
             loss = img_loss + lang_loss
 
-            img_is_correct = torch.eq(img_pred_binary, img_label)
-            
+            img_pred_binary = torch.ge(img_pred, 0.5).float().to(torch.bfloat16)
+            lang_pred_binary = torch.lt(lang_pred, 0.5).float().to(torch.bfloat16)
+    
+            img_is_correct = torch.eq(img_pred_binary, img_label)    
             lang_is_correct = torch.eq(lang_pred_binary, lang_label)
                         
             return_dict = {
@@ -63,7 +59,7 @@ class Discriminator(nn.Module):
                 "lang_total": return_dict["img_is_correct"].size(0)
             }
 
-            with open("/home/smirrashidi/return_dict.json", "a") as json_file:
+            with open("/home/smirrashidi/return_dict2.json", "a") as json_file:
                 json.dump(json_dict, json_file)
                 json_file.write("\n") 
 
@@ -71,7 +67,7 @@ class Discriminator(nn.Module):
         
         else:
             lang_label = torch.full((img_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
-            img_with_lang_label_loss = loss_function(img_pred_binary, lang_label) # trying to follow DCGAN
+            img_with_lang_label_loss = loss_function(img_pred, lang_label) # trying to follow DCGAN
 
             return img_with_lang_label_loss # returning image loss to maximize disc loss when training generator
         

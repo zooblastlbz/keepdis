@@ -1001,7 +1001,7 @@ def train(attn_implementation=None):
 
     print(eval_dict)
 
-    with open("/home/smirrashidi/test_discrim.json", "w") as json_file:
+    with open("/home/smirrashidi/test_discrim2.json", "w") as json_file:
         json.dump(eval_dict, json_file, indent=4)
 
     model.config.use_cache = True
