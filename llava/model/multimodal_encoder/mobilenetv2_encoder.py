@@ -7,7 +7,6 @@ from PIL import Image
 from torchvision import transforms
 
 from transformers import CLIPImageProcessor
-import pdb
 
 class MobileNetV2VisionTower(nn.Module):
     def __init__(self, vision_tower, args, delay_load=False):
@@ -19,13 +18,8 @@ class MobileNetV2VisionTower(nn.Module):
         self.select_layer = args.mm_vision_select_layer
         self.select_feature = getattr(args, "mm_vision_select_feature", "patch")
 
-        if not delay_load:
-            self.load_model()
-        elif getattr(args, 'unfreeze_mm_vision_tower', False):
-            self.load_model()
-        else:
-            raise ValueError("Unexpected model configuration.")
-
+        self.load_model()
+        
     def load_model(self, device_map=None):
         if self.is_loaded:
             print('{} is already loaded, `load_model` called again, skipping.'.format(self.vision_tower_name))
@@ -69,7 +63,8 @@ class MobileNetV2VisionTower(nn.Module):
         # pdb.set_trace()
 
         # Ensure correct dtype and move to CPU if needed
-        if image.dtype == torch.bfloat16:
+        original_type = image.dtype
+        if original_type == torch.bfloat16 or original_type == torch.float16:
             image = image.to(torch.float32)
         if image.is_cuda:
             image = image.cpu()
@@ -107,8 +102,7 @@ class MobileNetV2VisionTower(nn.Module):
         # print(torch.tensor(output_data).unsqueeze(1))
 
         # Ensure correct dtype and move to GPU if needed
-        if output_batch_tensor.dtype == torch.float32:
-            output_batch_tensor = output_batch_tensor.to(torch.bfloat16)
+        output_batch_tensor = output_batch_tensor.to(original_type)
         if torch.cuda.is_available():
             output_batch_tensor = output_batch_tensor.to('cuda')
 
