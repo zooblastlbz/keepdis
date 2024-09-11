@@ -52,7 +52,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             "image": None, 
             "lang": None,
         }
-        self.discriminator = Discriminator(5120, 2) # hard coding in sizes for now
+        self.discriminator = Discriminator(5120) # hard coding in sizes for now
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -74,8 +74,27 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
-        d_mode: Optional[bool] = False # False means run without discriminator
+        d_mode: Optional[bool] = False, # False means run without discriminator
+        eval_disc: Optional[bool] = False 
         ) -> Union[Tuple, CausalLMOutputWithPast]:
+
+        if eval_disc == True: 
+            return self.forward_eval_discrim(
+                input_ids, 
+                attention_mask, 
+                position_ids, 
+                past_key_values, 
+                inputs_embeds, 
+                labels, 
+                use_cache, 
+                output_attentions, 
+                output_hidden_states, 
+                images, 
+                image_sizes, 
+                return_dict, 
+                d_mode, 
+                eval_disc
+            )
     
         if inputs_embeds is None:
             (
@@ -94,9 +113,11 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 images,
                 image_sizes
             )
+            
+        d_mode = True # REMOVE WHEN NOT TESTING DISC
 
         if d_mode == True:
-            d_loss = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
+            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -109,12 +130,14 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict
             )
+
+            d_loss = discrim_dict["loss"]
             
             model_output.loss = d_loss # returning only discriminator loss
 
             return model_output
         else:
-            d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is disc loss on the image toke with lang labels (following DCGAN)
+            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -127,10 +150,52 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict
             )
+
+            d_loss = discrim_dict["loss"]
             
             model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
 
         return model_output
+    
+    def forward_eval_discrim(
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        images: Optional[torch.FloatTensor] = None,
+        image_sizes: Optional[List[List[int]]] = None,
+        return_dict: Optional[bool] = None,
+        d_mode: Optional[bool] = True, # False means run without discriminator
+        eval_disc: Optional[bool] = True
+        ):
+
+        if inputs_embeds is None:
+            (
+                input_ids,
+                position_ids,
+                attention_mask,
+                past_key_values,
+                inputs_embeds,
+                labels
+            ) = self.prepare_inputs_labels_for_multimodal(
+                input_ids,
+                position_ids,
+                attention_mask,
+                past_key_values,
+                labels,
+                images,
+                image_sizes
+            )
+
+        discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
+
+        return discrim_dict
 
     @torch.no_grad()
     def generate(

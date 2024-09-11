@@ -3,10 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
+import json
 import random
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size, classes):
+    def __init__(self, input_size):
         super().__init__()  # we can add more layers later
 
         self.fc1 = nn.Linear(input_size, 50)
@@ -31,18 +32,46 @@ class Discriminator(nn.Module):
         img_pred = self.linear(img_tok) # BCE expects output from a sigmoid (i think)
         lang_pred = self.linear(lang_tok)
 
+        img_pred_binary = torch.ge(img_pred, 0.5).float().to(torch.bfloat16)
+        lang_pred_binary = torch.ge(lang_pred, 0.5).float().to(torch.bfloat16)
+
         if d_mode == True: 
             img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
             lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
 
+            img_loss = loss_function(img_pred_binary, img_label)
+            lang_loss = loss_function(lang_pred_binary, lang_label) 
+
             img_loss = loss_function(img_pred, img_label)
             lang_loss = loss_function(lang_pred, lang_label) 
+            loss = img_loss + lang_loss
 
-            return img_loss + lang_loss # returning both losses to train disc
+            img_is_correct = torch.eq(img_pred_binary, img_label)
+            
+            lang_is_correct = torch.eq(lang_pred_binary, lang_label)
+                        
+            return_dict = {
+                "loss": loss, 
+                "img_is_correct" : img_is_correct, 
+                "lang_is_correct": lang_is_correct, 
+            }
+
+            json_dict = {
+                "num_img_corr": return_dict["img_is_correct"].sum().item(),
+                "num_lang_corr": return_dict["lang_is_correct"].sum().item(),
+                "img_total": return_dict["img_is_correct"].size(0),
+                "lang_total": return_dict["img_is_correct"].size(0)
+            }
+
+            with open("/home/smirrashidi/return_dict.json", "a") as json_file:
+                json.dump(json_dict, json_file)
+                json_file.write("\n") 
+
+            return return_dict
         
         else:
             lang_label = torch.full((img_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
-            img_with_lang_label_loss = loss_function(img_pred, lang_label) # trying to follow DCGAN
+            img_with_lang_label_loss = loss_function(img_pred_binary, lang_label) # trying to follow DCGAN
 
             return img_with_lang_label_loss # returning image loss to maximize disc loss when training generator
         

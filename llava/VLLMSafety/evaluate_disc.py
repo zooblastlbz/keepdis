@@ -37,8 +37,6 @@ from llava.mm_utils import tokenizer_image_token
 
 from PIL import Image
 
-from llava.VLLMSafety.discriminator import Discriminator # REMOVE ME
-
 
 local_rank = None
 
@@ -112,6 +110,11 @@ class TrainingArguments(transformers.TrainingArguments):
     lora_bias: str = "none"
     mm_projector_lr: Optional[float] = None
     group_by_modality_length: bool = field(default=False)
+
+@dataclass
+class DiscArguments:
+    test_data_path: Optional[str] = field(default="/home/smirrashidi/coco_data/coco_test_conversations.json")
+    test_image_folder:Optional[str] = field(default="/home/smirrashidi/coco_data/coco_test")
 
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -776,23 +779,36 @@ class DataCollatorForSupervisedDataset(object):
 
 
 def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
-                                data_args) -> Dict:
+                                data_args, disc_args, testing) -> Dict:
     """Make dataset and collator for supervised fine-tuning."""
-    train_dataset = LazySupervisedDataset(tokenizer=tokenizer,
+
+    if testing == True:
+        data_args.image_folder = disc_args.test_image_folder
+        data_args.data_path = disc_args.test_data_path
+
+        train_dataset = LazySupervisedDataset(tokenizer=tokenizer,
                                 data_path=data_args.data_path,
                                 data_args=data_args)
-    data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
+    
+        data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
+
+    else:
+        train_dataset = LazySupervisedDataset(tokenizer=tokenizer,
+                                data_path=data_args.data_path,
+                                data_args=data_args)
+        data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
+        
     return dict(train_dataset=train_dataset,
-                eval_dataset=None,
-                data_collator=data_collator)
+            eval_dataset=None,
+            data_collator=data_collator)
 
 
-def eval_disc(attn_implementation=None):
+def train(attn_implementation=None):
     global local_rank
 
     parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments))
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        (ModelArguments, DataArguments, TrainingArguments, DiscArguments))
+    model_args, data_args, training_args, disc_args = parser.parse_args_into_dataclasses()
     local_rank = training_args.local_rank
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
 
@@ -959,43 +975,34 @@ def eval_disc(attn_implementation=None):
                         module = module.to(torch.bfloat16)
 
     data_module = make_supervised_data_module(tokenizer=tokenizer,
-                                              data_args=data_args)
+                                              data_args=data_args, 
+                                              disc_args=disc_args, 
+                                              testing = False)
 
     model.to("cuda")
     trainer = LLaVATrainer(model=model,
                     tokenizer=tokenizer,
                     args=training_args,
                     **data_module)
-    
-    saved_model = Discriminator(5120)
-
-    state_dict = torch.load("/home/smirrashidi/LLaVAFork/trained_disc.pt", weights_only=True)
-
-    state_dict["fc1.weight"] = state_dict["fc1.lora_B.default.weight"]
-    state_dict["fc2.weight"] = state_dict["fc2.base_layer.weight"]
-    state_dict["fc1.bias"] = torch.zeros(state_dict["fc1.weight"].shape[0])
-    state_dict["fc2.bias"] = torch.zeros(state_dict["fc2.weight"].shape[0])
-
-    keys_to_remove = [
-        "fc1.base_layer.weight", "fc1.base_layer.bias", 
-        "fc1.lora_A.default.weight", "fc1.lora_B.default.weight", 
-        "fc2.base_layer.weight", "fc2.base_layer.bias", 
-        "fc2.lora_A.default.weight", "fc2.lora_B.default.weight"
-    ]
-
-    for key in keys_to_remove:
-        if key in state_dict:
-            del state_dict[key]
-
-    saved_model.load_state_dict(state_dict, strict=True)
-
-    trainer.evaluate(data_module["train_dataset"])
 
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
     trainer.save_state()
+    trainer.save_model()
+
+    test_data_module = make_supervised_data_module(tokenizer=tokenizer,
+                                              data_args=data_args, 
+                                              disc_args=disc_args, 
+                                              testing = True)
+
+    _, eval_dict = trainer.evaluate(test_data_module["train_dataset"]) 
+
+    print(eval_dict)
+
+    with open("/home/smirrashidi/test_discrim.json", "w") as json_file:
+        json.dump(eval_dict, json_file, indent=4)
 
     model.config.use_cache = True
 
@@ -1016,4 +1023,4 @@ def eval_disc(attn_implementation=None):
 
 
 if __name__ == "__main__":
-    eval_disc(attn_implementation="flash_attention_2")
+    train(attn_implementation="flash_attention_2")
