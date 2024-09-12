@@ -13,6 +13,6 @@ def build_vision_tower(vision_tower_cfg, **kwargs):
         else:
             return CLIPVisionTower(vision_tower, args=vision_tower_cfg, **kwargs)
     elif vision_tower.startswith("mikarbx"):
-        return MobileNetV2VisionTower(vision_tower, args=vision_tower_cfg, **kwargs)
+        return MobileNetV2VisionTower(vision_tower)
 
     raise ValueError(f'Unknown vision tower: {vision_tower}')

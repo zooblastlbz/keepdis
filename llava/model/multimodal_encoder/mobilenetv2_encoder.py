@@ -9,14 +9,12 @@ from torchvision import transforms
 from transformers import CLIPImageProcessor
 
 class MobileNetV2VisionTower(nn.Module):
-    def __init__(self, vision_tower, args, delay_load=False):
+    def __init__(self, vision_tower):
         super().__init__()
 
         self.is_loaded = False
 
         self.vision_tower_name = vision_tower
-        self.select_layer = args.mm_vision_select_layer
-        self.select_feature = getattr(args, "mm_vision_select_feature", "patch")
 
         self.load_model()
         
@@ -26,7 +24,7 @@ class MobileNetV2VisionTower(nn.Module):
             return
 
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
-        self.vision_tower = tflite.Interpreter(model_path=hf_hub_download(repo_id="mikarbx/mobilenetv2", filename="mobilenet_v2_0.35_128_tl_without_classification_head.tflite", force_download=True))
+        self.vision_tower = tflite.Interpreter(model_path=hf_hub_download(repo_id=self.vision_tower_name, filename="mobilenet_v2_0.35_128_tl_without_classification_head.tflite", force_download=True))
         self.vision_tower.allocate_tensors()
 
         self.input_details = self.vision_tower.get_input_details()
