@@ -26,6 +26,7 @@ from transformers import AutoTokenizer, CLIPImageProcessor, LlamaForCausalLM
 from llava.model.language_model.llava_llama import LlavaConfig
 from llava.model.multimodal_encoder.mobilenetv2_encoder import MobileNetV2VisionTower
 import os
+import numpy as np
 
 torch.set_printoptions(threshold=10000)
 
@@ -38,7 +39,7 @@ base_model_path = "lmsys/vicuna-13b-v1.5"
 # Query
 question = "What happened?"
 # Image path
-image_path = "./blip_laion/00000/000000010.jpg"
+image_path = "./blip_laion/00000/000000012.jpg"
 
 # Generation parameters
 temperature = 0
@@ -49,8 +50,24 @@ max_new_tokens=512
 lora_cfg_pretrained = LlavaConfig.from_pretrained(model_path)
 
 if image_path is None:
-    # Here you can put your own image embedding
-    image_embeddings = torch.rand(1, 1, 1280).to('cuda', dtype=torch.float16)
+    def encode_image(vision_tower, height, width):
+        noise_image = np.random.normal(loc=0.5, scale=0.2, size=(height, width, 3))
+        noise_image = np.clip(noise_image, 0, 1)
+        noise_image = (noise_image * 255).astype(np.uint8)
+            
+        encoder = MobileNetV2VisionTower(vision_tower)
+        
+        image = Image.fromarray(noise_image)
+        image = encoder.image_processor([image], return_tensors='pt')['pixel_values']
+        
+        return encoder.process_single_image(image.to(dtype=torch.float16))
+    
+    print('Encode random gaussian noise...')
+    image_embeddings = encode_image(
+        getattr(lora_cfg_pretrained, "mm_vision_tower", None),
+        1024,
+        1024,
+    )
 else:
     def encode_image(vision_tower, image_path):
         encoder = MobileNetV2VisionTower(vision_tower)
@@ -240,4 +257,7 @@ output_data = model.generate(
 outputs = tokenizer.batch_decode(output_data, skip_special_tokens=True)[0].strip()
 
 # Print answer
+print("PROMPT:")
+print(prompt)
+print("ANSWER:")
 print(outputs)
