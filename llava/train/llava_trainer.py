@@ -797,6 +797,8 @@ class LLaVATrainer(Trainer):
         if self.neftune_noise_alpha is not None:
             self._deactivate_neftune(self.model)
 
+        print(f"printing from inner_training_loop:{model.module.base_model.model.discriminator.fc1.weight}")
+
         return TrainOutput(self.state.global_step, train_loss, metrics)
 
     def compute_loss(self, model, inputs, return_outputs=False):

@@ -3,12 +3,11 @@ import torch
 import os
 import json
 from tqdm import tqdm
-import shortuuid
 from torch.utils.data import DataLoader
 
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from llava.conversation import conv_templates, SeparatorStyle
-from llava.model.builder import load_pretrained_model
+from llava.VLLMSafety.builder2 import load_pretrained_model_discrim
 from llava.utils import disable_torch_init
 from llava.mm_utils import tokenizer_image_token, process_images, get_model_name_from_path
 from llava.train.train import LazySupervisedDataset, DataCollatorForSupervisedDataset, DataArguments, TrainingArguments, make_supervised_data_module
@@ -33,36 +32,32 @@ def get_chunk(lst, n, k):
 def eval_model(args):
         model_path = os.path.expanduser(args.model_path)
         model_name = get_model_name_from_path(model_path)
-        tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
+        tokenizer, model, image_processor, context_len = load_pretrained_model_discrim(model_path, args.model_base, model_name)
         model_args = ModelArguments(model_name_or_path = args.model_path)
         data_args = DataArguments(data_path = args.question_file, 
                     image_folder = args.image_folder)
+    
         
         training_args = TrainingArguments(output_dir="/home/smirrashidi/dump")
-        model = LlavaLlamaForCausalLM.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
-            attn_implementation=None,
-            torch_dtype=(torch.bfloat16 if training_args.bf16 else None)
-        )
+
         
         total = 0 
         num_img_correct= 0
         num_lang_correct = 0
     
-        test_data = LazySupervisedDataset(tokenizer=tokenizer,
-                            data_path=data_args.data_path,
-                            data_args=data_args)
+        # test_data = LazySupervisedDataset(tokenizer=tokenizer,
+        #                     data_path=data_args.data_path,
+        #                     data_args=data_args)
 
-        data_module = make_supervised_data_module(tokenizer=tokenizer,
-                                                data_args=data_args)
+        # data_module = make_supervised_data_module(tokenizer=tokenizer,
+        #                                         data_args=data_args)
 
-        trainer = LLaVATrainer(model=model,
-                        tokenizer=tokenizer,
-                        args=training_args,
-                        **data_module)
+        # trainer = LLaVATrainer(model=model,
+        #                 tokenizer=tokenizer,
+        #                 args=training_args,
+        #                 **data_module)
         
-        trainer.evaluate(eval_dataset=test_data)
+        # trainer.evaluate(eval_dataset=test_data)
 
 
 if __name__ == "__main__":

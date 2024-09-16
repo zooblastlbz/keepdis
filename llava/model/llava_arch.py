@@ -260,6 +260,7 @@ class LlavaMetaForCausalLM(ABC):
 
             #curr input embeds is coming from cur_input_ids_noim which means its already filitered
             self.disc_data['lang'] = cur_input_embeds
+            #print(f'self.disc_data: {self.disc_data}\n')
 
             cur_new_input_embeds = []
             cur_new_labels = []

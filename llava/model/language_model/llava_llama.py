@@ -27,6 +27,9 @@ from llava.VLLMSafety.discriminator import Discriminator
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
 
+from transformers.modeling_utils import *
+from transformers.modeling_utils import _add_variant
+
 
 class LlavaConfig(LlamaConfig):
     model_type = "llava_llama"
@@ -132,6 +135,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
 
             d_loss = discrim_dict["loss"]
+
+            print(f"pritning from llava forward function \n fc1:{self.discriminator.fc1.weight}")
             
             model_output.loss = d_loss # returning only discriminator loss
 
@@ -249,6 +254,3 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         if image_sizes is not None:
             inputs['image_sizes'] = image_sizes
         return inputs
-
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, LlavaLlamaForCausalLM)

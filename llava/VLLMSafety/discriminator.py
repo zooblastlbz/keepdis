@@ -32,6 +32,10 @@ class Discriminator(nn.Module):
         lang_pred = self.linear(lang_tok)
 
         if d_mode == True: 
+            print("in discrim forward")
+            print(self.fc1.weight.requires_grad)
+            print(self.fc2.weight.requires_grad)
+
             img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
             lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
 
@@ -43,6 +47,8 @@ class Discriminator(nn.Module):
             img_pred_binary = torch.ge(img_pred, 0.5).float().to(torch.bfloat16)
             lang_pred_binary = torch.lt(lang_pred, 0.5).float().to(torch.bfloat16)
     
+            print(f'img_loss: {img_loss} lang_loss: {lang_loss} loss: {loss}\n')
+
             img_is_correct = torch.eq(img_pred_binary, img_label)    
             lang_is_correct = torch.eq(lang_pred_binary, lang_label)
                         
@@ -59,7 +65,7 @@ class Discriminator(nn.Module):
                 "lang_total": return_dict["img_is_correct"].size(0)
             }
 
-            with open("/home/smirrashidi/return_dict2.json", "a") as json_file:
+            with open("/home/smirrashidi/return_dict1.json", "a") as json_file:
                 json.dump(json_dict, json_file)
                 json_file.write("\n") 
 
