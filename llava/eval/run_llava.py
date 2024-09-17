@@ -8,7 +8,7 @@ from llava.constants import (
     DEFAULT_IM_END_TOKEN,
     IMAGE_PLACEHOLDER,
 )
-from llava.conversation import conv_templates, SeparatorStyle
+from llava.conversation import conv_templates, SeparatorStyle, get_conv
 from llava.model.builder import load_pretrained_model
 from llava.utils import disable_torch_init
 from llava.mm_utils import (
@@ -127,6 +127,100 @@ def eval_model(args):
     outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
     print(outputs)
 
+
+def eval_multiple(args):
+    disable_torch_init()
+
+    model_name = get_model_name_from_path(args.model_path)
+    tokenizer, model, image_processor, context_len = load_pretrained_model(
+        args.model_path, args.model_base, model_name
+    )
+
+    qs = args.query
+    image_token_se = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN
+    if IMAGE_PLACEHOLDER in qs:
+        if model.config.mm_use_im_start_end:
+            qs = re.sub(IMAGE_PLACEHOLDER, image_token_se, qs)
+        else:
+            qs = re.sub(IMAGE_PLACEHOLDER, DEFAULT_IMAGE_TOKEN, qs)
+    else:
+        if model.config.mm_use_im_start_end:
+            qs = image_token_se + "\n" + qs
+        else:
+            qs = DEFAULT_IMAGE_TOKEN + "\n" + qs
+
+    if "llama-2" in model_name.lower():
+        conv_mode = "llava_llama_2"
+    elif "mistral" in model_name.lower():
+        conv_mode = "mistral_instruct"
+    elif "v1.6-34b" in model_name.lower():
+        conv_mode = "chatml_direct"
+    elif "v1" in model_name.lower():
+        conv_mode = "llava_v1"
+    elif "mpt" in model_name.lower():
+        conv_mode = "mpt"
+    else:
+        conv_mode = "llava_v0"
+
+    if args.conv_mode is not None and conv_mode != args.conv_mode:
+        print(
+            "[WARNING] the auto inferred conversation mode is {}, while `--conv-mode` is {}, using {}".format(
+                conv_mode, args.conv_mode, args.conv_mode
+            )
+        )
+    else:
+        args.conv_mode = conv_mode
+
+    # Later we are going to consider history
+    # conv = conv_templates[args.conv_mode].copy()
+
+    if not hasattr(args,"custom_system"):
+        args.custom_system = None
+    conv = get_conv(args.conv_mode, args.custom_system)
+    conv.append_message(conv.roles[0], qs)
+    conv.append_message(conv.roles[1], None)
+    prompt = conv.get_prompt()
+
+    print(f"PROMPT  {prompt}")
+
+    image_files = image_parser(args)
+    images = load_images(image_files)
+    image_sizes = [x.size for x in images]
+
+    input_ids = (
+        tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt")
+        .unsqueeze(0)
+        .cuda()
+    )
+
+    for c, image in enumerate(images):
+
+        images_tensor = process_images(
+            [image],
+            image_processor,
+            model.config
+        ).to(model.device, dtype=torch.float16)
+
+        
+        with torch.inference_mode():
+            output_ids = model.generate(
+                input_ids,
+                images=images_tensor,
+                image_sizes=image_sizes,
+                do_sample=True if args.temperature > 0 else False,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                num_beams=args.num_beams,
+                max_new_tokens=args.max_new_tokens,
+                use_cache=True,
+            )
+        outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
+
+        # print(f"Image {image_files[c]} : {outputs}")
+        yield image_files[c] , outputs
+
+
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
