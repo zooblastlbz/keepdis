@@ -78,27 +78,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
         d_mode: Optional[bool] = False, # False means run without discriminator
-        eval_disc: Optional[bool] = False 
         ) -> Union[Tuple, CausalLMOutputWithPast]:
 
-        if eval_disc == True: 
-            return self.forward_eval_discrim(
-                input_ids, 
-                attention_mask, 
-                position_ids, 
-                past_key_values, 
-                inputs_embeds, 
-                labels, 
-                use_cache, 
-                output_attentions, 
-                output_hidden_states, 
-                images, 
-                image_sizes, 
-                return_dict, 
-                d_mode, 
-                eval_disc
-            )
-    
         if inputs_embeds is None:
             (
                 input_ids,
@@ -135,9 +116,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
 
             d_loss = discrim_dict["loss"]
-
-            print(f"pritning from llava forward function \n fc1:{self.discriminator.fc1.weight}")
-            
+                        
             model_output.loss = d_loss # returning only discriminator loss
 
             return model_output

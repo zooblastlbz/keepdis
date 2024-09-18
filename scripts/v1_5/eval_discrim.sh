@@ -6,7 +6,7 @@
 
 # change output dir back to llava-v1.5-13b-lora_disc
 
-deepspeed llava/VLLMSafety/train.py \
+deepspeed llava/VLLMSafety/evaluate_disc.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-13b-v1.5 \
@@ -22,7 +22,7 @@ deepspeed llava/VLLMSafety/train.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-v1.5-13b-lora_testing \
+    --output_dir ./checkpoints/llava-v1.5-13b-lora_eval \
     --num_train_epochs 1 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
