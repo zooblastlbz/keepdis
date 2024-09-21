@@ -682,7 +682,6 @@ class LLaVATrainer(Trainer):
 
                     # Optimizer step
                     
-                    inputs["d_mode"] = True # REMOVE WHEN NOT TESTING DISC
                     if inputs["d_mode"] == True:
                         self.d_optimizer.step()
                         model.module.base_model.model.discriminator.zero_grad() 

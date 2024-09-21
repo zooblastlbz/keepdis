@@ -97,8 +97,6 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 images,
                 image_sizes
             )
-            
-        d_mode = True # REMOVE WHEN NOT TESTING DISC
 
         if d_mode == True:
             discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
@@ -121,7 +119,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
             return model_output
         else:
-            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
+            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang; same call in both if and else 
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
