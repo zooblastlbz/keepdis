@@ -391,6 +391,16 @@ conv_templates = {
     "mpt": conv_mpt,
 }
 
+# Gets a copy of the converstation according to templates and modifies the system with custom if not None
+def get_conv(conv_mode, custom):
+    conv = conv_templates[conv_mode].copy()
+
+    # Here we just modify the system prompt. We do not do any checking on prompt format
+    # In later iterations we might check if for example the system requires |im_start| or so
+    if custom is not None:
+        conv.system = custom
+    
+    return conv
 
 if __name__ == "__main__":
     print(default_conversation.get_prompt())
