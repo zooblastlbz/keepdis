@@ -147,6 +147,7 @@ class LlavaMetaForCausalLM(ABC):
         self, input_ids, position_ids, attention_mask, past_key_values, labels,
         images, image_sizes=None
     ):
+        torch.cuda.set_device(0)
         self.disc_data['image'] = []
         self.disc_data['lang'] = [] 
 

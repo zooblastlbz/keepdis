@@ -20,7 +20,7 @@ class Discriminator(nn.Module):
         return x
  
     def forward(self, data, d_mode):
-        device = 'cuda'   
+        device = 'cuda:0'   # CHANGE TO JUST CUDA WHEN NOT USING VLMEVAL
         loss_function = nn.BCELoss() # from DCGAN
 
         img_tok = data["image"]
@@ -28,8 +28,8 @@ class Discriminator(nn.Module):
 
         img_tok = img_tok.view(-1, 5120) # image tokens have dim=3
 
-        img_pred = self.linear(img_tok) # BCE expects output from a sigmoid (i think)
-        lang_pred = self.linear(lang_tok)
+        img_pred = self.linear(img_tok).to(device) # BCE expects output from a sigmoid (i think)
+        lang_pred = self.linear(lang_tok).to(device)
 
         # img_pred = img_pred.to(device) # for testing dsicrim, remove when training
         # lang_pred = lang_pred.to(device) # for testing discrim, remove when training (i think?) its not like training even works

@@ -787,6 +787,7 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
 
 def train(attn_implementation=None):
     global local_rank
+    print("Starting Training")
 
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
@@ -934,7 +935,7 @@ def train(attn_implementation=None):
         if training_args.freeze_mm_mlp_adapter:
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = False
-                print("if this is printing then you are not training the projector")
+                print("\n\nif this is printing then you are not training the projector")
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
@@ -965,6 +966,12 @@ def train(attn_implementation=None):
     
     for name, param in model.discriminator.named_parameters():
         param.requires_grad = True
+
+    for name, param in model.discriminator.named_parameters():
+        assert param.requires_grad, f"Parameter {name} does not have requires_grad set to True"
+
+    for name, param in model.get_model().mm_projector.named_parameters():
+        assert param.requires_grad, f"Parameter {name} does not have requires_grad set to True" 
 
     trainer = LLaVATrainer(model=model,
                     tokenizer=tokenizer,
