@@ -20,7 +20,7 @@ class Discriminator(nn.Module):
         return x
  
     def forward(self, data, d_mode):
-        device = 'cuda'   # CHANGE TO JUST CUDA WHEN NOT USING VLMEVAL
+        device = 'cuda'  
         loss_function = nn.BCELoss() # from DCGAN
 
         img_tok = data["image"]
