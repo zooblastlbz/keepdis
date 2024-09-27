@@ -1,4 +1,4 @@
-#    Copyright 2023 Haotian Liu
+ #    Copyright 2023 Haotian Liu
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -114,12 +114,17 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
 
             d_loss = discrim_dict["loss"]
+
+            data = {'disc loss': d_loss.item()}
+            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+                json.dump(data, f)
+                f.write('\n')
                         
             model_output.loss = d_loss # returning only discriminator loss
 
             return model_output
         else:
-            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang; same call in both if and else 
+            d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is sum of disc loss on images and lang; same call in both if and else 
             model_output = super().forward(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -132,10 +137,13 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict
             )
-
-            d_loss = discrim_dict["loss"]
             
             model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
+
+            data = {'model loss': model_output.loss.item()}
+            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+                json.dump(data, f)
+                f.write('\n')
 
         return model_output
     

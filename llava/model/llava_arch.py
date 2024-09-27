@@ -138,7 +138,6 @@ class LlavaMetaForCausalLM(ABC):
         return self.get_model().get_vision_tower()
 
     def encode_images(self, images):
-        # images = images.to(torch.bfloat16) if images.dtype != torch.bfloat16 else images # added for testing the discriminator, not part of source code
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
@@ -147,7 +146,6 @@ class LlavaMetaForCausalLM(ABC):
         self, input_ids, position_ids, attention_mask, past_key_values, labels,
         images, image_sizes=None
     ):
-        torch.cuda.set_device(0)
         self.disc_data['image'] = []
         self.disc_data['lang'] = [] 
 

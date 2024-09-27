@@ -1,3 +1,4 @@
+llava trainer 
 import os
 import torch
 import torch.nn as nn
@@ -6,6 +7,7 @@ import torch.optim as optim
 from packaging import version
 import time
 import deepspeed
+import random
 import sys 
 import json
 
@@ -599,8 +601,8 @@ class LLaVATrainer(Trainer):
                 rng_to_sync = True
 
             step = -1
-            for step, inputs in enumerate(epoch_iterator):
-                inputs['d_mode'] = True if (step % 2 == 0) else False # set d_mode 
+            for step, inputs in enumerate(epoch_iterator): 
+                inputs["d_mode"] = True if step % 2 == 0 else False
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
@@ -700,6 +702,24 @@ class LLaVATrainer(Trainer):
                     self.state.epoch = epoch + (step + 1 + steps_skipped) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
 
+                    print(self.state.epoch)
+
+                    if abs(self.state.epoch - 0.01) < 1e-4:
+                        print(f"Saving checkpoint at epoch {self.state.epoch}")
+                        self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
+
+                    elif abs(self.state.epoch - 0.25) < 1e-4:
+                        print(f"Saving checkpoint at epoch {self.state.epoch}")
+                        self._save_checkpoint(model, trial=None)
+
+                    elif abs(self.state.epoch - 0.5) < 1e-4:
+                        print(f"Saving checkpoint at epoch {self.state.epoch}")
+                        self._save_checkpoint(model, trial=None)
+
+                    elif abs(self.state.epoch - 0.75) < 1e-4:
+                        print(f"Saving checkpoint at epoch {self.state.epoch}")
+                        self._save_checkpoint(model, trial=None) 
+
                     self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
                     self.control = self.callback_handler.on_substep_end(args, self.state, self.control)
@@ -787,7 +807,5 @@ class LLaVATrainer(Trainer):
         # for the embedding layer by removing the forward post hook.
         if self.neftune_noise_alpha is not None:
             self._deactivate_neftune(self.model)
-
-        print(f"printing from inner_training_loop:{model.module.base_model.model.discriminator.fc1.weight}")
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
