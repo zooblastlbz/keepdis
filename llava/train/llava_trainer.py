@@ -701,15 +701,13 @@ class LLaVATrainer(Trainer):
                     self.state.epoch = epoch + (step + 1 + steps_skipped) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
 
-                    print(self.state.epoch)
+                    # if abs(self.state.epoch - 0.01) < 1e-4:
+                    #     print(f"Saving checkpoint at epoch {self.state.epoch}")
+                    #     self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
 
-                    if abs(self.state.epoch - 0.01) < 1e-4:
+                    if abs(self.state.epoch - 0.25) < 1e-4:
                         print(f"Saving checkpoint at epoch {self.state.epoch}")
                         self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
-
-                    elif abs(self.state.epoch - 0.25) < 1e-4:
-                        print(f"Saving checkpoint at epoch {self.state.epoch}")
-                        self._save_checkpoint(model, trial=None)
 
                     elif abs(self.state.epoch - 0.5) < 1e-4:
                         print(f"Saving checkpoint at epoch {self.state.epoch}")

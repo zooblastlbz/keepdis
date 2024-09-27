@@ -141,7 +141,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
 
             data = {'model loss': model_output.loss.item()}
-            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+            with open('/home/smirrashidi/loss_9-27.json', 'a') as f:
                 json.dump(data, f)
                 f.write('\n')
 
