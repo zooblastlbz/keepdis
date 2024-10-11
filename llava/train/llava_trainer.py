@@ -6,7 +6,6 @@ import torch.optim as optim
 from packaging import version
 import time
 import deepspeed
-import random
 import sys 
 import json
 
@@ -310,7 +309,8 @@ class LLaVATrainer(Trainer):
         else:
             super(LLaVATrainer, self)._save(output_dir, state_dict)
 
-    def _inner_training_loop(
+    
+def _inner_training_loop(
         self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
     ):
         self.accelerator.free_memory()
@@ -600,8 +600,12 @@ class LLaVATrainer(Trainer):
                 rng_to_sync = True
 
             step = -1
-            for step, inputs in enumerate(epoch_iterator): 
-                inputs["d_mode"] = True if step % 2 == 0 else False
+            batch = 0
+            for step, inputs in enumerate(epoch_iterator):
+
+                if total_batched_samples % self.args.train_batch_size == 0: 
+                    batch += 1 
+
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
@@ -634,7 +638,7 @@ class LLaVATrainer(Trainer):
                     self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
 
                 with self.accelerator.accumulate(model):
-                    tr_loss_step = self.training_step(model, inputs)
+                    tr_loss_step = self.training_step(model, inputs, batch % 2 == 0)
 
                 if (
                     args.logging_nan_inf_filter
@@ -680,15 +684,10 @@ class LLaVATrainer(Trainer):
                                 model.parameters(),
                                 args.max_grad_norm,
                             )
-
-                    # Optimizer step
-                    
-                    if inputs["d_mode"] == True:
-                        self.d_optimizer.step()
-                        model.module.base_model.model.discriminator.zero_grad() 
-
-                    else:
-                         self.optimizer.step()
+        
+                    # Optimizer step 
+                    self.optimizer.step()
+                    model.module.base_model.model.discriminator.optimizer.step()
 
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
@@ -700,22 +699,6 @@ class LLaVATrainer(Trainer):
                     self.state.global_step += 1
                     self.state.epoch = epoch + (step + 1 + steps_skipped) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
-
-                    # if abs(self.state.epoch - 0.01) < 1e-4:
-                    #     print(f"Saving checkpoint at epoch {self.state.epoch}")
-                    #     self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
-
-                    if abs(self.state.epoch - 0.25) < 1e-4:
-                        print(f"Saving checkpoint at epoch {self.state.epoch}")
-                        self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
-
-                    elif abs(self.state.epoch - 0.5) < 1e-4:
-                        print(f"Saving checkpoint at epoch {self.state.epoch}")
-                        self._save_checkpoint(model, trial=None)
-
-                    elif abs(self.state.epoch - 0.75) < 1e-4:
-                        print(f"Saving checkpoint at epoch {self.state.epoch}")
-                        self._save_checkpoint(model, trial=None) 
 
                     self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
@@ -804,5 +787,7 @@ class LLaVATrainer(Trainer):
         # for the embedding layer by removing the forward post hook.
         if self.neftune_noise_alpha is not None:
             self._deactivate_neftune(self.model)
+
+        print(f"printing from inner_training_loop:{model.module.base_model.model.discriminator.fc1.weight}")
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
