@@ -9,6 +9,7 @@ import deepspeed
 import random
 import sys 
 import json
+import numpy as np
 
 from typing import Dict, Optional, Union, List, Any, Tuple
 
@@ -310,6 +311,41 @@ class LLaVATrainer(Trainer):
         else:
             super(LLaVATrainer, self)._save(output_dir, state_dict)
 
+    # def _maybe_log_save_evaluate(self, tr_loss, disc_loss, summed_loss, model, trial, epoch, ignore_keys_for_eval):
+    #     if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
+    #         if is_torch_tpu_available():
+    #             xm.mark_step()
+
+    #         logs: Dict[str, float] = {}
+            
+    #     if isinstance(disc_loss, np.ndarray):
+    #         disc_loss = torch.tensor(disc_loss)
+    #     if isinstance(summed_loss, np.ndarray):
+    #         summed_loss = torch.tensor(summed_loss)
+            
+    #         # all_gather + mean() to get average loss over all processes
+    #         tr_loss_scalar = self._nested_gather(tr_loss).mean().item()
+    #         disc_loss_scalar = self._nested_gather(disc_loss).mean().item()
+    #         summed_loss_scalar = self._nested_gather(summed_loss).mean().item()
+    #         gen_loss_scalar = self._nested_gather((summed_loss - disc_loss)).mean().item()
+
+    #         # reset tr_loss to zero
+    #         tr_loss -= tr_loss
+    #         disc_loss -= disc_loss
+    #         summed_loss -= summed_loss
+
+    #         logs["loss"] = round(tr_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+    #         logs["disc_loss"] = round(disc_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+    #         logs["summmed_loss"] = round(summed_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+    #         logs["gen_loss"] = round(gen_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+    #         logs["learning_rate"] = self._get_learning_rate()
+
+    #         self._total_loss_scalar += tr_loss_scalar
+    #         self._globalstep_last_logged = self.state.global_step
+    #         self.store_flos()
+
+    #         self.log(logs)
+
     def _inner_training_loop(
         self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
     ):
@@ -572,6 +608,8 @@ class LLaVATrainer(Trainer):
                     _ = list(sampler)
 
         total_batched_samples = 0
+        # disc_loss = torch.zeros((3, 3))
+        # summed_loss = torch.zeros((3, 3))
         for epoch in range(epochs_trained, num_train_epochs):
             epoch_iterator = train_dataloader
             if hasattr(epoch_iterator, "set_epoch"):
@@ -635,6 +673,11 @@ class LLaVATrainer(Trainer):
 
                 with self.accelerator.accumulate(model):
                     tr_loss_step = self.training_step(model, inputs)
+
+                # if inputs['d_mode'] == True:
+                #     disc_loss = tr_loss_step
+                # else:
+                #     summed_loss = tr_loss_step
 
                 if (
                     args.logging_nan_inf_filter
@@ -714,6 +757,7 @@ class LLaVATrainer(Trainer):
                         self._save_checkpoint(model, trial=None) 
 
                     self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
+            # self._maybe_log_save_evaluate(tr_loss, disc_loss, summed_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
                     self.control = self.callback_handler.on_substep_end(args, self.state, self.control)
 
@@ -731,6 +775,7 @@ class LLaVATrainer(Trainer):
 
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
             self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
+            # self._maybe_log_save_evaluate(tr_loss, disc_loss, summed_loss, model, trial, epoch, ignore_keys_for_eval)
 
             if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
                 if is_torch_tpu_available():
