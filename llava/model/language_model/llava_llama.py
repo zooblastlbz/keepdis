@@ -77,7 +77,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
-        d_mode: Optional[bool] = False, # False means run without discriminator
+        d_mode: Optional[bool] = False # True means only training discriminator
         ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:
@@ -114,11 +114,6 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
 
             d_loss = discrim_dict["loss"]
-
-            data = {'disc loss': d_loss.item()}
-            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
-                json.dump(data, f)
-                f.write('\n')
                         
             model_output.loss = d_loss # returning only discriminator loss
 
@@ -138,13 +133,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 return_dict=return_dict
             )
             
-            model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
-
-            data = {'model loss': model_output.loss.item()}
-            with open('/home/smirrashidi/loss_9-27.json', 'a') as f:
-                json.dump(data, f)
-                f.write('\n')
-
+            model_output.loss = 1.5 * model_output.loss + d_loss
+                
         return model_output
     
     def forward_eval_discrim(

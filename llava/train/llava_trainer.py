@@ -601,7 +601,7 @@ class LLaVATrainer(Trainer):
 
             step = -1
             for step, inputs in enumerate(epoch_iterator): 
-                inputs["d_mode"] = True if step % 2 == 0 else False
+                inputs["d_mode"] = True if step % 3 == 0 else False
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
@@ -700,10 +700,6 @@ class LLaVATrainer(Trainer):
                     self.state.global_step += 1
                     self.state.epoch = epoch + (step + 1 + steps_skipped) / steps_in_epoch
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
-
-                    # if abs(self.state.epoch - 0.01) < 1e-4:
-                    #     print(f"Saving checkpoint at epoch {self.state.epoch}")
-                    #     self._save_checkpoint(model, trial=None) # only saves the mm_projector weights, which can be passed into the model later
 
                     if abs(self.state.epoch - 0.25) < 1e-4:
                         print(f"Saving checkpoint at epoch {self.state.epoch}")
