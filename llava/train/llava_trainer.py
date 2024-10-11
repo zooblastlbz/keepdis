@@ -310,7 +310,7 @@ class LLaVATrainer(Trainer):
             super(LLaVATrainer, self)._save(output_dir, state_dict)
 
     
-def _inner_training_loop(
+    def _inner_training_loop(
         self, batch_size=None, args=None, resume_from_checkpoint=None, trial=None, ignore_keys_for_eval=None
     ):
         self.accelerator.free_memory()
@@ -600,12 +600,7 @@ def _inner_training_loop(
                 rng_to_sync = True
 
             step = -1
-            batch = 0
             for step, inputs in enumerate(epoch_iterator):
-
-                if total_batched_samples % self.args.train_batch_size == 0: 
-                    batch += 1 
-
                 total_batched_samples += 1
 
                 if self.args.include_num_input_tokens_seen:
@@ -638,7 +633,7 @@ def _inner_training_loop(
                     self.control = self.callback_handler.on_step_begin(args, self.state, self.control)
 
                 with self.accelerator.accumulate(model):
-                    tr_loss_step = self.training_step(model, inputs, batch % 2 == 0)
+                    tr_loss_step = self.training_step_handler(model, inputs)
 
                 if (
                     args.logging_nan_inf_filter
@@ -684,11 +679,9 @@ def _inner_training_loop(
                                 model.parameters(),
                                 args.max_grad_norm,
                             )
-        
-                    # Optimizer step 
-                    self.optimizer.step()
-                    model.module.base_model.model.discriminator.optimizer.step()
 
+                    # Optimizer step
+                    self.optimizer.step()
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
                         # Delay optimizer scheduling until metrics are generated
@@ -703,8 +696,6 @@ def _inner_training_loop(
                     self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
                     self.control = self.callback_handler.on_substep_end(args, self.state, self.control)
-
-                torch.cuda.empty_cache() 
 
                 if self.control.should_epoch_stop or self.control.should_training_stop:
                     break
@@ -788,6 +779,36 @@ def _inner_training_loop(
         if self.neftune_noise_alpha is not None:
             self._deactivate_neftune(self.model)
 
-        print(f"printing from inner_training_loop:{model.module.base_model.model.discriminator.fc1.weight}")
-
         return TrainOutput(self.state.global_step, train_loss, metrics)
+    
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]], dmode: bool = False) -> torch.Tensor:
+        model.train()
+        inputs = self._prepare_inputs(inputs) 
+
+        if is_sagemaker_mp_enabled():
+            loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
+            return loss_mb.reduce_mean().detach().to(self.args.device)
+
+        with self.compute_loss_context_manager():
+            loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+        if self.use_apex:
+            with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            self.accelerator.backward(loss)
+        
+        if dmode: 
+            self.d_optimizer.step()
+            self.d_optimizer.zero_grad()
+        
+        print("d_mode: ", dmode, end=" ")
+        print("loss: ", loss)
+
+        return loss.detach() / self.args.gradient_accumulation_steps
+
+    def training_step_handler(self, model, inputs): 
+        return self.training_step(model, inputs, False) + self.training_step(model, inputs, True) 
