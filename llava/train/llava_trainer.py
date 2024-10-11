@@ -261,6 +261,10 @@ class LLaVATrainer(Trainer):
                     },
                 ]
 
+            for name, param in opt_model.named_parameters():
+                if name not in projector_parameters:
+                    param.requires_grad = False
+
             optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
 
             self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
