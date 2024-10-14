@@ -2,9 +2,9 @@
 
 set -e
 
-# uasage
+# usage
 usage() {
-  echo "Usage: $0 --query-code <code> or $0 --all"
+  echo "Usage: $0 --query-code <code> --model-path <path> or $0 --all --model-path <path>"
   exit 1
 }
 
@@ -29,7 +29,37 @@ declare -A activity_map=(
   ["13"]="Gov_Decision"
 )
 
-# if we pass in the code flag (if you want all codes to run pass -all falg)
+# Default model path
+model_path=""
+
+# parrse args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --query-code)
+      query_code="$2"
+      shift 2
+      ;;
+    --model-path)
+      model_path="$2"
+      shift 2
+      ;;
+    --all)
+      all=true
+      shift
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+# make sure we pass model
+if [[ -z "$model_path" ]]; then
+  echo "Error: --model-path argument is required."
+  usage
+fi
+
+# if you only run one of the models
 run_commands_for_code() {
   code=$1
   activity_name=${activity_map[$code]}
@@ -41,34 +71,28 @@ run_commands_for_code() {
 
   echo "Running for code: $code, Activity: $activity_name"
 
-  # run the custom_model_vqa to run eval on our fine tuned model
+  # run the custom_model_vqa to run eval on our fine-tuned model
   echo "Running custom_model_vqa.py for attack category: ${code}-${activity_name}"
-  python3 custom_model_vqa.py --attack-category "${code}-${activity_name}"
+  python3 custom_model_vqa.py --attack-category "${code}-${activity_name}" --model-path "$model_path"
 
-  # run answer_file_transform.py with the activity name
+  #run answer_file_transform.py with the activity name
   echo "Running answer_file_transform.py for scenario name: $activity_name"
   echo "Running answer_file_transform.py for scenario number: $code"
   python3 answer_file_transform.py "$activity_name" "$code"
 
-  # run MM_eval.py with the scenario number (code) in a list format
+  # run MM_eval.py with the scenario code
   echo "Running MM_eval.py for scenario number: $code"
   python3 MM_eval.py --scenario_numbers "$code"
 }
 
-if [[ $1 == "--query-code" ]]; then
-  if [[ -z $2 ]]; then
-    echo "You must provide a code when using --query-code flag"
-    usage
-  fi
-  query_code=$2
-
-  # make sure the query code is valid
-  if [[ $query_code != "SD" ]]; then
+# if --query-code flag is passed
+if [[ ! -z "$query_code" ]]; then
+  if [[ "$query_code" != "SD" ]]; then
     run_commands_for_code "$query_code"
   fi
 
-elif [[ $1 == "--all" ]]; then
-  # loop through all the codes if we turn on the all flag
+# if --all flag is passed
+elif [[ "$all" == true ]]; then
   for code in "${!activity_map[@]}"; do
     run_commands_for_code "$code"
   done

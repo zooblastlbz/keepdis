@@ -81,7 +81,6 @@ def eval_model(args):
                                    "model_id": model_name,
                                    "metadata": {}}) + "\n")
         ans_file.flush()
-        break
     ans_file.close()
     
 if __name__ == "__main__":

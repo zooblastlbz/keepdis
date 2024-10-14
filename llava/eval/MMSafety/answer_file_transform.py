@@ -22,7 +22,6 @@ def generate_reformatted_data(args, og_queries, answers):
                 "text": answers[qid]['text']
             }
         }
-        break
     return reformatted_data
 
 def reformat_data(args):
