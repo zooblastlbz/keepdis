@@ -8,6 +8,7 @@ import time
 import deepspeed
 import sys 
 import json
+import numpy as np
 
 from typing import Dict, Optional, Union, List, Any, Tuple
 
@@ -576,6 +577,8 @@ class LLaVATrainer(Trainer):
                     _ = list(sampler)
 
         total_batched_samples = 0
+        # disc_loss = torch.zeros((3, 3))
+        # summed_loss = torch.zeros((3, 3))
         for epoch in range(epochs_trained, num_train_epochs):
             epoch_iterator = train_dataloader
             if hasattr(epoch_iterator, "set_epoch"):
@@ -700,6 +703,7 @@ class LLaVATrainer(Trainer):
                     self.control = self.callback_handler.on_step_end(args, self.state, self.control)
 
                     self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
+            # self._maybe_log_save_evaluate(tr_loss, disc_loss, summed_loss, model, trial, epoch, ignore_keys_for_eval)
                 else:
                     self.control = self.callback_handler.on_substep_end(args, self.state, self.control)
 
@@ -715,6 +719,7 @@ class LLaVATrainer(Trainer):
 
             self.control = self.callback_handler.on_epoch_end(args, self.state, self.control)
             self._maybe_log_save_evaluate(tr_loss, model, trial, epoch, ignore_keys_for_eval)
+            # self._maybe_log_save_evaluate(tr_loss, disc_loss, summed_loss, model, trial, epoch, ignore_keys_for_eval)
 
             if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
                 if is_torch_tpu_available():

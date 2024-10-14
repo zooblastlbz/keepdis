@@ -93,8 +93,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
-        d_mode: Optional[bool] = False,  # False means run without discriminator
-    ) -> Union[Tuple, CausalLMOutputWithPast]:
+        d_mode: Optional[bool] = False # True means only training discriminator
+        ) -> Union[Tuple, CausalLMOutputWithPast]:
 
         if inputs_embeds is None:
             (
@@ -155,14 +155,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
-
-            model_output.loss = (
-                model_output.loss + d_loss
-            )  # returning sum of model and discriminator loss
-
-            data = {"model loss": model_output.loss.item()}
-            self.log_data_to_json(data)
-
+            
+            model_output.loss = 1.5 * model_output.loss + d_loss
+                
         return model_output
 
     @torch.no_grad()
