@@ -663,11 +663,13 @@ class LazySupervisedDataset(Dataset):
                  data_args: DataArguments):
         super(LazySupervisedDataset, self).__init__()
         list_data_dict = json.load(open(data_path, "r"))
+       
 
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
         self.list_data_dict = list_data_dict
         self.data_args = data_args
+        
 
     def __len__(self):
         return len(self.list_data_dict)
@@ -698,7 +700,14 @@ class LazySupervisedDataset(Dataset):
             image_file = self.list_data_dict[i]['image']
             image_folder = self.data_args.image_folder
             processor = self.data_args.image_processor
-            image = Image.open(os.path.join(image_folder, image_file)).convert('RGB')
+
+            if not image_folder==None:
+                img_path = os.path.join(image_folder, image_file)
+            else:
+                img_path = image_file
+
+            
+            image = Image.open(img_path).convert('RGB')
             if self.data_args.image_aspect_ratio == 'pad':
                 def expand2square(pil_img, background_color):
                     width, height = pil_img.size
@@ -989,3 +998,11 @@ def train(attn_implementation=None):
 
 if __name__ == "__main__":
     train()
+
+
+
+
+
+"""
+rsync -avz --exclude='*.out' /home/khayatan/llava/LLaVA/llava/train/train.py uja56bm@jean-zay.idris.fr:/lustre/fswork/projects/rech/lqq/uja56bm/LLaVA/llava/train/
+"""
