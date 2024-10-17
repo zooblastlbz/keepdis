@@ -219,18 +219,14 @@ class LLaVATrainer(Trainer):
             decay_parameters = [name for name in decay_parameters if "bias" not in name]
             if self.args.mm_projector_lr is not None:
                 projector_parameters = [name for name, _ in opt_model.named_parameters() if "mm_projector" in name]
+                discriminator_parameters = [name for name, _ in opt_model.named_parameters() if "discriminator" in name]
                 optimizer_grouped_parameters = [
                     {
                         "params": [
-                            p for n, p in opt_model.named_parameters() if (n in decay_parameters and n not in projector_parameters and p.requires_grad)
+                            p for n, p in opt_model.named_parameters() if (n in discriminator_parameters and p.requires_grad)
                         ],
-                        "weight_decay": self.args.weight_decay,
-                    },
-                    {
-                        "params": [
-                            p for n, p in opt_model.named_parameters() if (n not in decay_parameters and n not in projector_parameters and p.requires_grad)
-                        ],
-                        "weight_decay": 0.0,
+                        "weight_decay": 0, # TODO: this can be a hyperparameter
+                        "lr": lr,
                     },
                     {
                         "params": [
@@ -247,7 +243,7 @@ class LLaVATrainer(Trainer):
                         "lr": self.args.mm_projector_lr,
                     },
                 ]
-            else:
+            else: # our code will never go here
                 optimizer_grouped_parameters = [
                     {
                         "params": [
@@ -262,6 +258,7 @@ class LLaVATrainer(Trainer):
                         "weight_decay": 0.0,
                     },
                 ]
+
 
             optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
 
@@ -281,6 +278,12 @@ class LLaVATrainer(Trainer):
                 logger.info(f"skipped: {skipped/2**20}M params")
 
         self.d_optimizer = optim.Adam(opt_model.discriminator.parameters(), lr= lr, betas=(beta1, 0.999)) # how to get discriminator parameters?
+
+        for name, param in opt_model.named_parameters():
+            if 'mm_projector' not in name and 'discriminator' not in name:
+                param.requires_grad = False
+        
+        # turn off all the params in the model that are not part of the projector or discriminator
         
         return self.optimizer
 
