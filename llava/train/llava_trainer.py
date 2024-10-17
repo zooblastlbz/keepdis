@@ -47,6 +47,11 @@ from transformers.trainer import (
 )
 
 from typing import List, Optional, Union
+import wandb 
+
+wandb.init(
+    project="llava_safety"
+)
 
 TRAINER_STATE_NAME = "trainer_state.json"
 lr = 0.0002
@@ -794,6 +799,17 @@ class LLaVATrainer(Trainer):
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]], dmode: bool = False) -> torch.Tensor:
 
         inputs['d_mode'] = dmode
+
+        if not dmode: 
+            for name, param in model.named_parameters(): 
+                if "discriminator" in name: 
+                    param.requires_grad = False
+        
+        if dmode: 
+            for name, param in model.named_parameters(): 
+                if "discriminator" in name: 
+                    param.requires_grad = True
+
         model.train()
         inputs = self._prepare_inputs(inputs) 
 
@@ -813,8 +829,10 @@ class LLaVATrainer(Trainer):
         else:
             self.accelerator.backward(loss)
         
-        print("d_mode: ", dmode, end=" ")
-        print("loss: ", loss)
+        if dmode: 
+            wandb.log({"discriminator_loss": loss})
+        else:
+            wandb.log({"generator_loss": loss})
 
         return loss.detach() / self.args.gradient_accumulation_steps
 
