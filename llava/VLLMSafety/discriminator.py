@@ -26,28 +26,33 @@ class Discriminator(nn.Module):
 
     def run_forward(self, data, d_mode):
 
-        zipped_lists = zip(data["image"], data["lang"])
+        image_list = torch.unbind(data['image'][0], dim=0)
+
+        zipped_lists = list(zip(image_list, data["lang"]))
         total_loss = 0
         img_is_correct = 0
         lang_is_correct = 0
 
         for image, language in zipped_lists:
+            # can add some logic to balance the dataset? usually lang tokens are less than image
             if d_mode:
                 loss, img, lang = self.forward(
                     image.view(-1, 5120), language.view(-1, 5120), d_mode
                 )
-                total_loss += loss
+                total_loss += loss/len(zipped_lists)
                 img_is_correct += torch.sum(img)
                 lang_is_correct += torch.sum(lang)
 
             else:
-                total_loss += self.forward(
-                    image.view(-1, 5120), language.view(-1, 5120), d_mode
-                )
+                total_loss += self.forward(image.view(-1, 5120), language.view(-1, 5120), d_mode) / len(zipped_lists)
+
+        # for debug
+        print("dmode: ", d_mode, "image is correct: ", img_is_correct)
+        print("dmode: ", d_mode, "lang is correct: ", lang_is_correct)
 
         if d_mode:
             return {
-                "loss": loss,
+                "loss": total_loss,
                 "img_is_correct": img_is_correct,
                 "lang_is_correct": lang_is_correct,
             }
