@@ -18,6 +18,8 @@ from typing import List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 
+import wandb
+
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -155,7 +157,10 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
-            
+
+
+            wandb.log({"generator_loss": model_output.loss})
+            wandb.log({"generator_disc_loss: ": d_loss})
             model_output.loss = 1.5 * model_output.loss + d_loss
                 
         return model_output

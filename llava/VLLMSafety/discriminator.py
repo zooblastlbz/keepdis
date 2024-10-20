@@ -23,6 +23,13 @@ class Discriminator(nn.Module):
         x = torch.sigmoid(self.fc2(x))
 
         return x
+    
+    def equal_sample(self, image, language): 
+        min_size = min(image.size(0), language.size(0))
+        image = image[:min_size]
+        language = language[:min_size]
+
+        return image, language
 
     def run_forward(self, data, d_mode):
 
@@ -33,8 +40,10 @@ class Discriminator(nn.Module):
         img_is_correct = 0
         lang_is_correct = 0
 
+
         for image, language in zipped_lists:
             # can add some logic to balance the dataset? usually lang tokens are less than image
+            image, language = self.equal_sample(image, language)
             if d_mode:
                 loss, img, lang = self.forward(
                     image.view(-1, 5120), language.view(-1, 5120), d_mode

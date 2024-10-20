@@ -804,8 +804,13 @@ class LLaVATrainer(Trainer):
             for name, param in model.named_parameters(): 
                 if "discriminator" in name: 
                     param.requires_grad = False
+                if "mm_projector" in name: 
+                    param.requires_grad = True
         
         if dmode: 
+            for name, param in model.named_parameters(): 
+                if "mm_projector" in name: 
+                    param.requires_grad = False
             for name, param in model.named_parameters(): 
                 if "discriminator" in name: 
                     param.requires_grad = True
@@ -831,13 +836,11 @@ class LLaVATrainer(Trainer):
         
         if dmode: 
             wandb.log({"discriminator_loss": loss})
-        else:
-            wandb.log({"generator_loss": loss})
 
         return loss.detach() / self.args.gradient_accumulation_steps
 
     def training_step_handler(self, model, inputs): 
-        return self.training_step(model, inputs, False) + self.training_step(model, inputs, True) 
+        return self.training_step(model, inputs, True) + self.training_step(model, inputs, False) 
 
     def compute_loss(self, model, inputs, return_outputs=False):
         """
