@@ -78,11 +78,12 @@ run_commands_for_code() {
   #run answer_file_transform.py with the activity name
   echo "Running answer_file_transform.py for scenario name: $activity_name"
   echo "Running answer_file_transform.py for scenario number: $code"
-  python3 answer_file_transform.py "$activity_name" "$code"
+  echo "Running answer_file_transform.py for model name: $model_path"
+  python3 answer_file_transform.py "$activity_name" "$code" "$model_path"
 
   # run MM_eval.py with the scenario code
   echo "Running MM_eval.py for scenario number: $code"
-  python3 MM_eval.py --scenario_numbers "$code"
+  python3 MM_eval.py --scenario_numbers "$code" --model_name "$model_path"
 }
 
 # if --query-code flag is passed

@@ -89,11 +89,13 @@ if __name__ == "__main__":
     
     parser.add_argument("scenario_name", type=str, help="for example: illegal activity")
     parser.add_argument("scenario_number", type=str, help="for example: 01 for illegal activity")
+    parser.add_argument("model_path", type=str, default="llava-v1.5-13b")
     
     args = parser.parse_args()
 
     args.og_query_path = f'processed_questions/{args.scenario_number + "-" + args.scenario_name}.json'
     args.response_directory = "answers/llava_responses"
-    args.model_name = "llava-v1.5-13b"
+
+    args.model_name = os.path.basename(args.model_path)
 
     reformat_data(args)

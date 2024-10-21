@@ -87,7 +87,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--model-path", type=str, default="../../../checkpoints/llava-v1.5-13b")
-    parser.add_argument("--model-base", type=str, default=None)
+    parser.add_argument("--model-base", type=str, default="../../../checkpoints/llava-v1.5-13b")
     parser.add_argument("--attack-category", type=str, default="01-Illegal_Activity", help="The attack category (e.g., Illegal_Activity)")
     parser.add_argument("--conv-mode", type=str, default="llava_v1")
     parser.add_argument("--num-chunks", type=int, default=1)
@@ -102,6 +102,8 @@ if __name__ == "__main__":
                         help="Base directory for transformed query files.")
     args = parser.parse_args()
 
+    model_name = os.path.basename(args.model_path)
+
     query_folders = [("SD_queries", "SD"), ("SDTYPO_queries", "SDTYPO"), ("TYPO_queries", "TYPO")]
 
     for query_folder, code in query_folders:
@@ -110,7 +112,7 @@ if __name__ == "__main__":
         args.question_file = os.path.join(args.transformed_queries_dir, query_folder, f"{tag}.jsonl")
 
         code_folder = f"{code}_answer_files/"
-        answers_dir = os.path.join(args.base_dir_responses, "llava_responses", "llava-v1.5-13b", "original_responses", code_folder)
+        answers_dir = os.path.join(args.base_dir_responses, "llava_responses", model_name, "original_responses", code_folder)
 
         os.makedirs(answers_dir, exist_ok=True)
 

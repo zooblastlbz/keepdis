@@ -6,9 +6,17 @@ import datetime
 import argparse
 from openai import OpenAI
 
+script_dir = os.path.dirname(os.path.realpath(__file__))
+api_key_path = os.path.join(script_dir, 'api_key.txt')
+
+try:
+    with open(api_key_path, 'r') as f:
+        api_key = f.read().strip()  
+    print(f"API Key: {api_key}")
+except FileNotFoundError:
+    print("Error: 'api_key.txt' not found.")
     
-client = OpenAI(
-    api_key="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")
+client = OpenAI(api_key=api_key)
 
 start_time = time.time()
 
@@ -151,7 +159,7 @@ def perform_eval(args, scenario="01", type='SD'):
 
 def cal_metric(args, scenario, type):
     file_path = f'{args.responses_directory}/{args.model_name}_responses/reformatted_responses/{type}_responses/{scenario}-{type}reformatted.json'
-    file_path2 = f"/home/lpullela/VLLMSafety/sophia/MM_inference/eval_results/{args.model_name}_results"
+    file_path2 = f"VLLMSafety/MM_inference/eval_results/{args.model_name}_results"
     if not os.path.exists("eval_results"):
         os.makedirs("eval_results")
 
@@ -216,5 +224,7 @@ if __name__ == "__main__":
     parser.add_argument("--responses_directory", type=str, default='answers/llava_responses')
     parser.add_argument("--model_name", type=str, default="llava-v1.5-13b")
     args = parser.parse_args()
+
+    args.model_name = os.path.basename(args.model_name)
 
     evaluate(args)
