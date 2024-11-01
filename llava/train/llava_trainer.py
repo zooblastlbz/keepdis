@@ -47,11 +47,16 @@ from transformers.trainer import (
 )
 
 from typing import List, Optional, Union
+import wandb
 
 TRAINER_STATE_NAME = "trainer_state.json"
 lr = 0.0002
 beta1 = 0.5
-  
+
+#os.environ['WANDB_MODE'] = 'disabled'
+wandb.init(
+    project="llava_safety"
+)
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -218,18 +223,14 @@ class LLaVATrainer(Trainer):
             decay_parameters = [name for name in decay_parameters if "bias" not in name]
             if self.args.mm_projector_lr is not None:
                 projector_parameters = [name for name, _ in opt_model.named_parameters() if "mm_projector" in name]
+                discriminator_parameters = [name for name, _ in opt_model.named_parameters() if "discriminator" in name]
                 optimizer_grouped_parameters = [
                     {
                         "params": [
-                            p for n, p in opt_model.named_parameters() if (n in decay_parameters and n not in projector_parameters and p.requires_grad)
+                            p for n, p in opt_model.named_parameters() if (n in discriminator_parameters and p.requires_grad)
                         ],
-                        "weight_decay": self.args.weight_decay,
-                    },
-                    {
-                        "params": [
-                            p for n, p in opt_model.named_parameters() if (n not in decay_parameters and n not in projector_parameters and p.requires_grad)
-                        ],
-                        "weight_decay": 0.0,
+                        "weight_decay": 0, # TODO: this can be a hyperparameter
+                        "lr": lr,
                     },
                     {
                         "params": [
@@ -246,7 +247,7 @@ class LLaVATrainer(Trainer):
                         "lr": self.args.mm_projector_lr,
                     },
                 ]
-            else:
+            else: # our code will never go here
                 optimizer_grouped_parameters = [
                     {
                         "params": [
@@ -261,6 +262,7 @@ class LLaVATrainer(Trainer):
                         "weight_decay": 0.0,
                     },
                 ]
+
 
             optimizer_cls, optimizer_kwargs = Trainer.get_optimizer_cls_and_kwargs(self.args)
 
@@ -280,6 +282,12 @@ class LLaVATrainer(Trainer):
                 logger.info(f"skipped: {skipped/2**20}M params")
 
         self.d_optimizer = optim.Adam(opt_model.discriminator.parameters(), lr= lr, betas=(beta1, 0.999)) # how to get discriminator parameters?
+
+        for name, param in opt_model.named_parameters():
+            if 'mm_projector' not in name and 'discriminator' not in name:
+                param.requires_grad = False
+        
+        # turn off all the params in the model that are not part of the projector or discriminator
         
         return self.optimizer
 
@@ -808,3 +816,58 @@ class LLaVATrainer(Trainer):
             self._deactivate_neftune(self.model)
 
         return TrainOutput(self.state.global_step, train_loss, metrics)
+    
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        """
+        gan style, compute d_loss and g_loss and update optimizers accordingly
+        """
+        model.train()
+        inputs = self._prepare_inputs(inputs)
+
+        # get d loss
+        d_loss = self._compute_loss_for_discriminator(model, inputs)
+        self._backward_pass(d_loss, self.d_optimizer, update_optimizer=True, loss_name="discriminator_loss")
+
+        # get g loss
+        g_loss = self._compute_loss_for_generator(model, inputs)
+        self._backward_pass(g_loss, self.optimizer, update_optimizer=False, loss_name="generator_loss")
+
+
+        total_loss = d_loss.detach() + g_loss.detach()
+        return total_loss / self.args.gradient_accumulation_steps
+
+    def _compute_loss_for_discriminator(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        inputs['d_mode'] = True  # enable discriminator mode
+        with self.compute_loss_context_manager():
+            d_loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            d_loss = d_loss.mean()  # average loss across multiple GPUs
+
+        return d_loss
+
+    def _compute_loss_for_generator(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        inputs['d_mode'] = False  # enable generator mode
+        with self.compute_loss_context_manager():
+            g_loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            g_loss = g_loss.mean()  # Average loss across multiple GPUs
+
+        return g_loss
+
+    def _backward_pass(self, loss: torch.Tensor, optimizer, update_optimizer: bool, loss_name: str):
+        
+        if self.use_apex:
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            self.accelerator.backward(loss)  # backwards pass
+
+        # only update d_optimizer (we want g_optimizer to go through grad clips)
+        if update_optimizer:
+            optimizer.step()
+            optimizer.zero_grad()
+
+        # Log the loss using WandB
+        wandb.log({loss_name: loss.item()})

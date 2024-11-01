@@ -157,7 +157,8 @@ class LlavaMetaForCausalLM(ABC):
             if type(images) is list:
                 images = [x.unsqueeze(0) if x.ndim == 3 else x for x in images]
             concat_images = torch.cat([image for image in images], dim=0)
-            image_features = self.encode_images(concat_images)
+            raw_image_features = self.encode_images(concat_images)
+            image_features = raw_image_features
             split_sizes = [image.shape[0] for image in images]
             image_features = torch.split(image_features, split_sizes, dim=0)
             mm_patch_merge_type = getattr(self.config, 'mm_patch_merge_type', 'flat')
@@ -203,8 +204,9 @@ class LlavaMetaForCausalLM(ABC):
                 raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
         else:
             image_features = self.encode_images(images)
+            raw_image_features = image_features
 
-        self.disc_data['image'] = image_features
+        self.disc_data['image'].append(raw_image_features)
 
         # TODO: image start / end is not implemented here to support pretraining.
         if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
@@ -258,7 +260,7 @@ class LlavaMetaForCausalLM(ABC):
 
 
             #curr input embeds is coming from cur_input_ids_noim which means its already filitered
-            self.disc_data['lang'] = cur_input_embeds
+            self.disc_data['lang'].append(cur_input_embeds_no_im[1])
             #print(f'self.disc_data: {self.disc_data}\n')
 
             cur_new_input_embeds = []

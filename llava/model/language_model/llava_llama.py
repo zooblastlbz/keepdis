@@ -29,6 +29,7 @@ from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
 
 from transformers.modeling_utils import *
 from transformers.modeling_utils import _add_variant
+import wandb
 
 
 class LlavaConfig(LlamaConfig):
@@ -116,9 +117,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             d_loss = discrim_dict["loss"]
 
             data = {'disc loss': d_loss.item()}
-            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
-                json.dump(data, f)
-                f.write('\n')
+            # with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+            #     json.dump(data, f)
+            #     f.write('\n')
                         
             model_output.loss = d_loss # returning only discriminator loss
 
@@ -139,11 +140,12 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             )
             
             model_output.loss = model_output.loss + d_loss # returning sum of model and discriminator loss
+            wandb.log({"generator_disc loss": d_loss})
 
             data = {'model loss': model_output.loss.item()}
-            with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
-                json.dump(data, f)
-                f.write('\n')
+            # with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+            #     json.dump(data, f)
+            #     f.write('\n')
 
         return model_output
     

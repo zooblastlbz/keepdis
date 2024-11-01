@@ -21,43 +21,49 @@ class Discriminator(nn.Module):
  
     def forward(self, data, d_mode):
         device = 'cuda'  
-        loss_function = nn.BCELoss() # from DCGAN
+        loss_function = nn.BCELoss()  # follow DCgan
 
-        img_tok = data["image"]
-        lang_tok = data["lang"]
-
-        img_tok = img_tok.view(-1, 5120) # image tokens have dim=3
+        image_batch = data['image'][0].view(-1, 5120).to(device)
+        img_tok = image_batch.view(-1, 5120)  # flatten the lists
 
         img_pred = self.linear(img_tok)
-        lang_pred = self.linear(lang_tok)
+        img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # use label 1 for imgs
+        img_loss = loss_function(img_pred, img_label)
 
-        if d_mode == True: 
+        total_lang_loss = 0
+        lang_correct_count = 0
+        total_lang_preds = 0
+        img_correct_count = torch.eq(torch.ge(img_pred, 0.5).float().to(torch.bfloat16), img_label).sum().item()
+        img_accuracy = img_correct_count / img_tok.size(0) * 100
 
-            img_label = torch.full((img_tok.size(0), 1), 1, dtype=torch.bfloat16, device=device)  # 1 for images
-            lang_label = torch.full((lang_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
+        for lang_tensor in data["lang"]:
+            lang_tensor = lang_tensor.to(device)
+            lang_pred = self.linear(lang_tensor.view(-1, 5120))  # Process each lang tensor independently
+            lang_label = torch.full((lang_pred.size(0), 1), 0, dtype=torch.bfloat16, device=device)  # Label 0 for language
 
-            img_loss = loss_function(img_pred, img_label)
-            lang_loss = loss_function(lang_pred, lang_label) 
+            lang_loss = loss_function(lang_pred, lang_label)
+            total_lang_loss += lang_loss
 
-            loss = img_loss + lang_loss
+            #for accuracy calculations
+            lang_correct = torch.eq(torch.ge(lang_pred, 0.5).float().to(torch.bfloat16), lang_label).sum().item()
+            lang_correct_count += lang_correct
+            total_lang_preds += lang_pred.size(0)
 
-            img_pred_binary = torch.ge(img_pred, 0.5).float().to(torch.bfloat16)
-            lang_pred_binary = torch.ge(lang_pred, 0.5).float().to(torch.bfloat16) # >= because we want the tensor to be all 0s if each value is less than 0.5
-    
-            img_is_correct = torch.eq(img_pred_binary, img_label)    
-            lang_is_correct = torch.eq(lang_pred_binary, lang_label)
-                        
-            return_dict = {
+        if d_mode:
+            lang_accuracy = lang_correct_count / total_lang_preds * 100
+            print(f"Image Accuracy: {img_accuracy:.2f}%")
+            print(f"Language Accuracy: {lang_accuracy:.2f}%")
+
+            loss = img_loss + total_lang_loss
+
+            return {
                 "loss": loss, 
-                "img_is_correct" : img_is_correct, 
-                "lang_is_correct": lang_is_correct, 
+                "img_is_correct": img_correct_count, 
+                "lang_is_correct": lang_correct_count, 
+                "img_accuracy": img_accuracy, 
+                "lang_accuracy": lang_accuracy,
             }
-
-            return return_dict
         
         else:
-            lang_label = torch.full((img_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device)  #  0 for lang
-            img_with_lang_label_loss = loss_function(img_pred, lang_label) # trying to follow DCGAN
-
-            return img_with_lang_label_loss # returning image loss to maximize disc loss when training generator
-        
+            img_with_lang_label_loss = loss_function(img_pred, torch.full((img_tok.size(0), 1), 0, dtype=torch.bfloat16, device=device))
+            return img_with_lang_label_loss
