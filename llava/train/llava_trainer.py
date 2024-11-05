@@ -690,13 +690,7 @@ class LLaVATrainer(Trainer):
                             )
 
                     # Optimizer step
-                    
-                    if inputs["d_mode"] == True:
-                        self.d_optimizer.step()
-                        model.module.base_model.model.discriminator.zero_grad() 
-
-                    else:
-                         self.optimizer.step()
+                    self.optimizer.step()
 
                     optimizer_was_run = not self.accelerator.optimizer_step_was_skipped
                     if optimizer_was_run:
@@ -825,8 +819,8 @@ class LLaVATrainer(Trainer):
         inputs = self._prepare_inputs(inputs)
 
         # get d loss
-        d_loss = self._compute_loss_for_discriminator(model, inputs)
-        self._backward_pass(d_loss, self.d_optimizer, update_optimizer=True, loss_name="discriminator_loss")
+        #d_loss = self._compute_loss_for_discriminator(model, inputs)
+        #self._backward_pass(d_loss, self.d_optimizer, update_optimizer=True, loss_name="discriminator_loss")
 
         # get g loss
         g_loss = self._compute_loss_for_generator(model, inputs)
@@ -870,4 +864,4 @@ class LLaVATrainer(Trainer):
             optimizer.zero_grad()
 
         # Log the loss using WandB
-        wandb.log({loss_name: loss.item()})
+        #wandb.log({loss_name: loss.item()})
