@@ -169,7 +169,7 @@ def get_mm_adapter_state_maybe_zero_3(named_params, keys_to_match):
 def find_all_linear_names(model):
     cls = torch.nn.Linear
     lora_module_names = set()
-    multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler']
+    multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler', 'discriminator']
     for name, module in model.named_modules():
         if any(mm_keyword in name for mm_keyword in multimodal_keywords):
             continue
@@ -787,6 +787,7 @@ def make_supervised_data_module(tokenizer: transformers.PreTrainedTokenizer,
 
 def train(attn_implementation=None):
     global local_rank
+    print("Starting Training")
 
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
@@ -928,11 +929,13 @@ def train(attn_implementation=None):
             model.requires_grad_(False)
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = True
+                print("Tuning mm_projector")
 
         model.config.freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
         if training_args.freeze_mm_mlp_adapter:
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = False
+                print("\n\nif this is printing then you are not training the projector")
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
@@ -958,6 +961,18 @@ def train(attn_implementation=None):
 
     data_module = make_supervised_data_module(tokenizer=tokenizer,
                                               data_args=data_args)
+
+    model.to("cuda")
+    
+    for name, param in model.discriminator.named_parameters():
+        param.requires_grad = True
+
+    for name, param in model.discriminator.named_parameters():
+        assert param.requires_grad, f"Parameter {name} does not have requires_grad set to True"
+
+    for name, param in model.get_model().mm_projector.named_parameters():
+        assert param.requires_grad, f"Parameter {name} does not have requires_grad set to True" 
+
     trainer = LLaVATrainer(model=model,
                     tokenizer=tokenizer,
                     args=training_args,
@@ -978,6 +993,7 @@ def train(attn_implementation=None):
         non_lora_state_dict = get_peft_state_non_lora_maybe_zero_3(
             model.named_parameters()
         )
+        print(non_lora_state_dict)
         if training_args.local_rank == 0 or training_args.local_rank == -1:
             model.config.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir, state_dict=state_dict)

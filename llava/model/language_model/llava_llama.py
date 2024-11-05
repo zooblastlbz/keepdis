@@ -1,4 +1,4 @@
-#    Copyright 2023 Haotian Liu
+ #    Copyright 2023 Haotian Liu
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -23,8 +23,13 @@ from transformers import AutoConfig, AutoModelForCausalLM, \
 
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.generation.utils import GenerateOutput
+from llava.VLLMSafety.discriminator import Discriminator
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
+
+from transformers.modeling_utils import *
+from transformers.modeling_utils import _add_variant
+import wandb
 
 
 class LlavaConfig(LlamaConfig):
@@ -47,9 +52,19 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         self.pretraining_tp = config.pretraining_tp
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.disc_data = { 
+            "image": None, 
+            "lang": None,
+        }
+        
+        self.eval_mode = False
+
+        if not self.eval_mode: 
+            self.discriminator = Discriminator(5120) # hard coding in sizes for now
 
         # Initialize weights and apply final processing
         self.post_init()
+
 
     def get_model(self):
         return self.model
@@ -68,7 +83,109 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         images: Optional[torch.FloatTensor] = None,
         image_sizes: Optional[List[List[int]]] = None,
         return_dict: Optional[bool] = None,
-    ) -> Union[Tuple, CausalLMOutputWithPast]:
+        d_mode: Optional[bool] = False, # False means run without discriminator
+        ) -> Union[Tuple, CausalLMOutputWithPast]:
+
+        if inputs_embeds is None:
+            (
+                input_ids,
+                position_ids,
+                attention_mask,
+                past_key_values,
+                inputs_embeds,
+                labels
+            ) = self.prepare_inputs_labels_for_multimodal(
+                input_ids,
+                position_ids,
+                attention_mask,
+                past_key_values,
+                labels,
+                images,
+                image_sizes
+            )
+        
+        if self.eval_mode: 
+            return super().forward(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+        
+        d_mode=False # if you want to turn off the disc completely
+    
+
+        if d_mode == True:
+            discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
+            model_output = super().forward(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict
+            )
+
+            d_loss = discrim_dict["loss"]
+
+            data = {'disc loss': d_loss.item()}
+            # with open('/home/smirrashidi/loss_9-24.json', 'a') as f:
+            #     json.dump(data, f)
+            #     f.write('\n')
+                        
+            model_output.loss = d_loss # returning only discriminator loss
+
+            return model_output
+        else:
+           # d_loss = self.discriminator.forward(self.disc_data, d_mode=False) # d loss is sum of disc loss on images and lang; same call in both if and else 
+            model_output = super().forward(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict
+            )
+        
+            #wandb.log({"generator_disc loss": d_loss})
+            wandb.log({"generator loss": model_output.loss})
+
+            model_output.loss = model_output.loss #+ d_loss # returning sum of model and discriminator loss
+            wandb.log({"summed loss": model_output.loss})
+
+        return model_output
+    
+    def forward_eval_discrim(
+        self,
+        input_ids: torch.LongTensor = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[List[torch.FloatTensor]] = None,
+        inputs_embeds: Optional[torch.FloatTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        images: Optional[torch.FloatTensor] = None,
+        image_sizes: Optional[List[List[int]]] = None,
+        return_dict: Optional[bool] = None,
+        d_mode: Optional[bool] = True, # False means run without discriminator
+        eval_disc: Optional[bool] = True
+        ):
 
         if inputs_embeds is None:
             (
@@ -88,18 +205,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes
             )
 
-        return super().forward(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            labels=labels,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict
-        )
+        discrim_dict = self.discriminator.forward(self.disc_data, d_mode=True) # d loss is sum of disc loss on images and lang
+
+        return discrim_dict
 
     @torch.no_grad()
     def generate(
@@ -153,6 +261,3 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         if image_sizes is not None:
             inputs['image_sizes'] = image_sizes
         return inputs
-
-AutoConfig.register("llava_llama", LlavaConfig)
-AutoModelForCausalLM.register(LlavaConfig, LlavaLlamaForCausalLM)

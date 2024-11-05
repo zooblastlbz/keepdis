@@ -8,7 +8,7 @@ deepspeed llava/train/train_mem.py \
     --data_path ./playground/data/llava_v1_5_mix665k.json \
     --image_folder ./playground/data \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/llava-v1.5-13b-pretrain/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/llava-v1.5-13b/mm_projector.bin  \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -16,15 +16,14 @@ deepspeed llava/train/train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-v1.5-13b-lora \
+    --output_dir ./checkpoints/llava-v1.5-13b-lora-9-26 \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 16 \
+    --per_device_train_batch_size 2 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 50000 \
-    --save_total_limit 1 \
+    --save_steps 50000 --save_total_limit 1 \
     --learning_rate 2e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
@@ -35,4 +34,5 @@ deepspeed llava/train/train_mem.py \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
-    --report_to wandb
+    --report_to wandb \
+    --tune_mm_mlp_adapter True
