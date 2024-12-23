@@ -14,6 +14,8 @@ from transformers.trainer import (
 )
 from typing import List, Optional
 
+from llava.train.train import get_peft_state_non_lora_maybe_zero_3
+
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -247,6 +249,14 @@ class LLaVATrainer(Trainer):
                 torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
         else:
             super(LLaVATrainer, self)._save_checkpoint(model, trial, metrics)
+
+        # Save non-lora peft state
+        if getattr(self.args, 'lora_enable', False):
+            non_lora_state_dict = get_peft_state_non_lora_maybe_zero_3(
+                self.model.named_parameters()
+            )
+            if self.args.local_rank == 0 or self.args.local_rank == -1:
+                torch.save(non_lora_state_dict, os.path.join(output_dir, 'non_lora_trainables.bin'))
 
     def _save(self, output_dir: Optional[str] = None, state_dict=None):
         if getattr(self.args, 'tune_mm_mlp_adapter', False):
