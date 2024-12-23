@@ -14,8 +14,6 @@ from transformers.trainer import (
 )
 from typing import List, Optional
 
-from llava.train.train import get_peft_state_non_lora_maybe_zero_3
-
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -34,6 +32,14 @@ def maybe_zero_3(param, ignore_status=False, name=None):
 def get_mm_adapter_state_maybe_zero_3(named_params, keys_to_match):
     to_return = {k: t for k, t in named_params if any(key_match in k for key_match in keys_to_match)}
     to_return = {k: maybe_zero_3(v, ignore_status=True, name=k).cpu() for k, v in to_return.items()}
+    return to_return
+
+
+def get_peft_state_non_lora_maybe_zero_3(named_params, require_grad_only=True):
+    to_return = {k: t for k, t in named_params if "lora_" not in k}
+    if require_grad_only:
+        to_return = {k: t for k, t in to_return.items() if t.requires_grad}
+    to_return = {k: maybe_zero_3(v, ignore_status=True).cpu() for k, v in to_return.items()}
     return to_return
 
 
