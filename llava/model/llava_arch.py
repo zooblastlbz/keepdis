@@ -306,10 +306,11 @@ class LlavaMetaForCausalLM(ABC):
                     cur_position=0
                     for j in range(cur_len):
                         position_ids[i,-cur_len+cur_position]= cur_position
-                        if image_text_labels[i][j] == 0 and image_text_labels[i][j+1] == 1:
-                            cur_position+=text_image_distance
-                        else:
-                            cur_position+=1
+                        if j != cur_len-1:
+                            if image_text_labels[i][j] == 0 and image_text_labels[i][j+1] == 1:
+                                cur_position+=text_image_distance
+                            else:
+                                cur_position+=1
                     #position_ids[i, -cur_len:] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
             else:
                 new_input_embeds_padded.append(torch.cat((
@@ -322,10 +323,11 @@ class LlavaMetaForCausalLM(ABC):
                     cur_position=0
                     for j in range(cur_len):
                         position_ids[i,j]= cur_position
-                        if image_text_labels[i][j] == 0 and image_text_labels[i][j+1] == 1:
-                            cur_position+=text_image_distance
-                        else:
-                            cur_position+=1
+                        if j!= cur_len-1:
+                            if image_text_labels[i][j] == 0 and image_text_labels[i][j+1] == 1:
+                                cur_position+=text_image_distance
+                            else:
+                                cur_position+=1
                     #position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
 
         new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
